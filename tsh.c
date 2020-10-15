@@ -10,6 +10,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "commande.h"
+#include <glib.h>
 
 int main(int argc, char const *argv[]) {
 	int quit = 0; //Variable qui enregistre si on execute la commande "exit" qui permet de sortir du shell
@@ -31,6 +32,17 @@ int main(int argc, char const *argv[]) {
 				printf("Au revoir\n");
 				quit = 1;
 			}
+			//Execution de la commande "cd" apres avoir sauvegarder le répertoire courant
+			gchar *g_get_current_dir (void);
+			else if(memmem(nom_commande,sizeof("cd"),"cd",sizeof("cd")))
+           {
+             gdir =nom_commande ;
+             dir = strcat(gdir, "/");
+             to = strcat(dir,liste_argument[1]);
+             chdir(to);
+           }
+			
+			
 			//Sinon execution de la commande voulue si possible
 			else
 			{
