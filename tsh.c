@@ -9,41 +9,22 @@
 #include <sys/wait.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <string.h>
 #include "commande.h"
+#include "shell.h"
 
 int main(int argc, char const *argv[]) {
-	int quit = 0; //Variable qui enregistre si on execute la commande "exit" qui permet de sortir du shell
-	while (quit == 0)
+	//Structure shell qui repertorie la variable pour sortir du shell, le repertoire courante et si on est dans un tarball
+	shell tsh;
+	tsh.quit = 0;
+	tsh.repertoire_courant = malloc(1024);
+	strcpy(tsh.repertoire_courant,getcwd(NULL,1024));
+	tsh.tarball = 0;
+	while (tsh.quit == 0)
 	{
 		int nb_arg_cmd; //Stocke le nombre d'arguments de la commande
 		char **liste_argument =  recuperer_commande(&nb_arg_cmd);
-		char *nom_commande = liste_argument[0];
-		//On verifie si la commande est nulle / vide
-		//Si oui on revient a la ligne
-		if (nom_commande == NULL)
-			printf("\n");
-		//Sinon on traite la commande
-		else
-		{
-			//Execution de la commande "exit" et depart du shell
-			if(memmem(nom_commande,sizeof("exit"),"exit",sizeof("exit")))
-			{
-				printf("Au revoir\n");
-				quit = 1;
-			}
-			//Sinon execution de la commande voulue si possible
-			else
-			{
-				int pid = fork();
-				if (pid==0)
-				{
-					if(execvp(nom_commande,liste_argument)==-1) //Si execvp renvoie -1, la commande n'existe pas
-						printf("Commande introuvable\n");
-					exit(0);
-				}
-				wait(NULL);
-			}
-		}
+		traitement_commande(liste_argument,nb_arg_cmd,&tsh);
 		//Liberation de la memoire
 		for(int i = 0; i < nb_arg_cmd;i++)
 			free(liste_argument[i]);
