@@ -1,5 +1,5 @@
-#ifndef COMMANDE_C
-#define COMMANDE_C
+#ifndef SHELL_C
+#define SHELL_C
 #define _GNU_SOURCE
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -11,8 +11,9 @@
 #include <sys/stat.h>
 #include "commande.h"
 #include "shell.h"
+#include "tar_c.h"
 /*
-	Fichier qui gere la recuperation de la commande
+	Fonctions gerant le fontionnement du shell
 */
 /*
 Fonction qui prend en argument la commande en entier et une adresse de son index
@@ -46,7 +47,7 @@ char *decoup_mot(char *commande,int *index)
 	return mot;
 }
 /*
-
+Renvoie le nom du dossier enfant
 */
 char *decoup_nom_fich(char *chemin,int *index)
 {
@@ -96,7 +97,6 @@ char *simplifie_chemin(char *chemin)
 				{
 					i--;
 				}
-				nvx_chemin[i] = '\0';
 				i++;
 				name = decoup_nom_fich(chemin,&index);
 				continue;

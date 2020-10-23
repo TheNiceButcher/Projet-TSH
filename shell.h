@@ -1,5 +1,6 @@
 #ifndef SHELL_H
 #define SHELL_H
+#include "tar_c.h"
 /*
 	Fichier qui gere la recuperation de la commande du shell
 */
