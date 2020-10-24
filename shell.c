@@ -218,7 +218,7 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				int i = 0;
 				int j = 0;
 				int fin = 0;
-				int end = 0;
+		
 				int fd1[2],fd2[2];
 				char ** commande = malloc(20*sizeof(char*));
 			     while(liste_argument[j] != NULL && fin!= 1){
@@ -229,7 +229,7 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			              if (liste_argument[j] == NULL){
 
 			                  // la variable fin va nous indiquer si on a lis tout les commandes
-			                  end = 1;
+			                  fin = 1;
 			                  k++;
 			                  break;
 			               }
