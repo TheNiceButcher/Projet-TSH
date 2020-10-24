@@ -181,13 +181,13 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		}
 		else
 		{
-
+            //compter le nombre de commande entre pipe
 		    for(int i = 0; i <nb_arg_cmd; i++){
                if (strcmp(liste_argument[i], "|") == 0){
                  cmds++;
               }
             }
-            cmds++;
+            cmds++;//nombre de commande entre  pipe si cmds est different de 1
 
 		    //s'il n y a pas de pipe
 		    if(cmds==1)
