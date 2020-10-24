@@ -162,7 +162,8 @@ char **recuperer_commande(int * taille_commande)
 Analyse la ligne de commande et traite la commande
 */
 int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
-{   int cmds=0;//nombre de commande entre pipe
+{
+	int cmds=0;//nombre de commande entre pipe
 	char *nom_commande = malloc(1024);
 	//On verifie si la commande est nulle / vide
 	//Si oui on revient a la ligne
@@ -180,105 +181,133 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		}
 		else
 		{
-		    
+
 		    for(int i = 0; i <nb_arg_cmd; i++){
                if (strcmp(liste_argument[i], "|") == 0){
                  cmds++;
               }
             }
             cmds++;
-		    
+
 		    //s'il n y a pas de pipe
-		    if(cmds==1){
-			//On verifie que la commande peut s'effectuer sur les tar ou non
-			if (estCommandeTar(nom_commande))
+		    if(cmds==1)
 			{
-				traitement_commandeTar(liste_argument,nb_arg_cmd,tsh);
+				//On verifie que la commande peut s'effectuer sur les tar ou non
+				if (estCommandeTar(nom_commande))
+				{
+					traitement_commandeTar(liste_argument,nb_arg_cmd,tsh);
+				}
+				//Sinon execution de la commande voulue si possible
+				else
+				{
+					int pid = fork();
+					if (pid == -1)
+						perror("Fils non cree");
+					if (pid==0)
+					{
+						if(execvp(nom_commande,liste_argument)==-1) //Si execvp renvoie -1, la commande n'existe pas
+							printf("Commande introuvable\n");
+						exit(0);
+					}
+					wait(NULL);
+				}
 			}
-			//Sinon execution de la commande voulue si possible
+			//s'il y a des pipe
 			else
 			{
-				int pid = fork();
-				if (pid == -1)
-					perror("Fils non cree");
-				if (pid==0)
-				{
-					if(execvp(nom_commande,liste_argument)==-1) //Si execvp renvoie -1, la commande n'existe pas
-						printf("Commande introuvable\n");
-					exit(0);
-				}
-				wait(NULL);
+				int i = 0;
+				int j = 0;
+				int fin = 0;
+				int end = 0;
+				int fd1[2],fd2[2];
+				char ** commande = malloc(20*sizeof(char*));
+			     while(liste_argument[j] != NULL && fin!= 1){
+		              int k = 0;
+		              while (strcmp(liste_argument[j],"|") != 0){
+			              commande[k] = liste_argument[j];
+			              j++;
+			              if (liste_argument[j] == NULL){
+
+			                  // la variable fin va nous indiquer si on a lis tout les commandes
+			                  end = 1;
+			                  k++;
+			                  break;
+			               }
+			               k++;
+		              }
+
+			           commande[k] = NULL;
+			           j++;
+
+			           if (i % 2 != 0){// si i est impaire
+			           		pipe(fd1);
+					   }
+					   else{
+			           	pipe(fd2);
+			          	}
+
+
+			       		if(fork()==0){
+			           //premier commande
+			            if (i == 0){
+						   close(fd1[0]);
+						   close(fd2[0]);
+						   close(fd1[1]);
+			               dup2(fd2[1], STDOUT_FILENO);
+						   close(fd2[1]);
+			           }
+
+
+			           // si on est dans la dernier commande
+			           else
+					   {
+						   if (i == cmds - 1){
+				               if (cmds % 2 != 0){
+								   close(fd2[0]);
+								   close(fd2[1]);
+								   close(fd1[1]);
+				                   dup2(fd1[0],STDIN_FILENO);
+								   //close(fd1[0]);
+				               }
+				               else{
+								   close(fd1[0]);
+								   close(fd2[1]);
+								   close(fd1[1]);
+				                   dup2(fd2[0],STDIN_FILENO);
+								   //close(fd2[0]);
+				               }
+
+				             //si on est dans une commande qui est au millieu on doit utiliser 2 pipe un pour recuper
+				             //sa sortie et lautre pour ecrire dans son entrer
+				              }
+				              else{
+				               if (i % 2 != 0){
+								   close(fd1[0]);
+								   close(fd2[1]);
+				                   dup2(fd2[0],STDIN_FILENO);
+				                   dup2(fd1[1],STDOUT_FILENO);
+								   /*close(fd1[1]);
+								   close(fd2[0]);*/
+				               }else{
+								   close(fd1[1]);
+								   close(fd2[0]);
+				                   dup2(fd1[0],STDIN_FILENO);
+				                   dup2(fd2[1],STDOUT_FILENO);
+								   /*close(fd1[0]);
+								   close(fd2[1]);*/
+				               }
+				           }
+				           execvp(commande[0],commande);
+					 }
+					 exit(0);
+			       }
+				   else
+				   	wait(NULL);
+			       i++;
+			   }
 			}
-		}
-		//s'il y a des pipe 
-		else {
-		     while(liste_argument[j] != NULL && fin!= 1){
-              int k = 0;
-              while (strcmp(liste_argument[j],"|") != 0){
-              commande[k] = liste_argument[j];
-              j++;
-              if (liste_argument[j] == NULL){
-                  
-                  // la variable fin va nous indiquer si on a lis tout les commandes
-                  end = 1;
-                  k++;
-                  break;
-               } 
-               k++;
-              }
-         
-           commande[k] = NULL;
-           j++;
 
-        if (i % 2 != 0){// si i est impaire
-           pipe(fd); 
-
-          }else{
-           pipe(fd2); 
-        }
-       
-
-       if(fork()==0){
-           //premier commande
-           if (i == 0){
-               dup2(filedes2[1], STDOUT_FILENO);
-           }
-
-
-           // si on nest dans la dernier commande
-           else if (i == cmds - 1){
-               if (num_cmds % 2 != 0){
-
-                   dup2(filedes[0],STDIN_FILENO);
-               }
-                 else{ 
-
-                   dup2(filedes2[0],STDIN_FILENO);
-               }
-
-             //si on est dans une commande qui est au millieu on doit utiliser 2 pipe un pour recuper 
-             //sa sortie et lautre pour ecrire dans son entrer
-              }
-              else{ 
-               if (i % 2 != 0){
-                   dup2(filedes2[0],STDIN_FILENO);
-                   dup2(filedes[1],STDOUT_FILENO);
-               }else{
-                   dup2(filedes[0],STDIN_FILENO);
-                   dup2(filedes2[1],STDOUT_FILENO);
-               }
-           }
-           execvp(commande[0],commande);
-       }
-       i++;
-
-
-
-
-     }
-		}
-		    
-		}
+			}
 	}
 	free(nom_commande);
 	return 0;
