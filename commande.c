@@ -93,12 +93,13 @@ char **recherche_option(char **liste_argument,int nb_arg_cmd)
 			j++;
 		}
 	}
+	//Aucune option
 	if (j == 0)
 	{
 		free(result);
 		return NULL;
 	}
-	for(;j < nb_arg_cmd-1;j++)
+	for(int h = j ;h < nb_arg_cmd-1;h++)
 	{
 		result[j] = NULL;
 	}
@@ -139,25 +140,46 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	{
 		if(strcmp(nom_commande,cmd_tarballs[i])==0)
 		{
-			if (tsh->tarball == 0 && i != 0 && i != 6)
+			//Gestion des options
+			char ** options = recherche_option(liste_argument,nb_arg_cmd);
+			int a_bonnes_options = 1;
+			if (options && option[i] == NULL)
+			{
+				a_bonnes_options = 0;
+			}
+			else
+			{
+				if(options)
+				{
+					int m = 0;
+					while (options[m]!=NULL)
+					{
+						if (strcmp(options[m],option[i]))
+							a_bonnes_options = 0;
+						m++;
+					}
+				}
+			}
+			if (tsh->tarball == 0)
 			{
 				int j = 1;
 				//Si oui, on verifie si les arguments ont un contexte tar ou non
 				for(;j < nb_arg_cmd;j++)
 				{
-					//Si on est dans un contexte tar, on arrete la boucle
-					if (contexteTarball(liste_argument[j]))
+					//Si on est dans un contexte tar et on , on arrete la boucle
+					if (contexteTarball(liste_argument[j]) && a_bonnes_options)
 					{
 						break;
 					}
 				}
-				//Si la boucle est alle juste qu'au bout, on lance exec
-				if (j==nb_arg_cmd)
+				//Si la boucle est alle juste qu'au bout et que la commande n'est ni cd ni pwd, on lance exec
+				if (j==nb_arg_cmd && i != 0 && i != 6)
 				{
 					int fils = fork();
 					if (fils == -1)
 					{
 						perror("");
+						free(nom_commande);
 						return 1;
 					}
 					if (fils == 0)
@@ -166,6 +188,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 						exit(0);
 					}
 					wait(NULL);
+					free(nom_commande);
 					return 0;
 				}
 
@@ -175,6 +198,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			return 0;
 		}
 	}
+	free(nom_commande);
 	return 1;
 }
 /*
@@ -200,22 +224,35 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		//Avec l'option -l
 		if (option)
 		{
-			printf("A faire\n");
+			if (contexteTarball(liste_argument[i]))
+			{
+				printf("%s:\n",liste_argument[i]);
+			}
+			else
+			{
+				if (fork()==0)
+				{
+					printf("%s:\n",liste_argument[i]);
+					execlp("ls","ls","-l",liste_argument[i],NULL);
+					exit(0);
+				}
+				wait(NULL);
+			}
 		}
 		//Sans l'option -l
 		else
 		{
-			char *fichier = malloc(255);
+			char *fichier = malloc(strlen(tsh->repertoire_courant) + strlen(liste_argument[i]) + 2);
 			strcpy(fichier,tsh->repertoire_courant);
 			strcat(fichier,"/");
 			strcat(fichier,liste_argument[i]);
 			char *simplified_path = malloc(1024);
 			strcpy(simplified_path,simplifie_chemin(fichier));
-			if (contexteTarball(simplified_path) || tsh->tarball == 1)
+			if (contexteTarball(simplified_path) /*|| tsh->tarball == 1*/)
 			{
-				fichier[strlen(simplified_path)-1] = '\0';
+				simplified_path[strlen(simplified_path)-1] = '\0';
 				//Fichier .tar
-				if (strcmp(&simplified_path[strlen(fichier)-4],".tar")==0)
+				if (strcmp(&simplified_path[strlen(simplified_path)-4],".tar")==0)
 				{
 					char **list = list_fich(simplified_path);
 					if (list == NULL)
@@ -277,7 +314,13 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			}
 			else
 			{
-				struct stat file;
+				if(fork()==0)
+				{
+					execlp("ls","ls",liste_argument[i],NULL);
+					exit(0);
+				}
+				wait(NULL);
+				/*struct stat file;
 				if (stat(simplified_path,&file) == -1)
 				{
 					perror("ls");
@@ -300,7 +343,7 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					}
 					closedir(repr);
 				}
-			}
+			*/}
 			free(simplified_path);
 		}
 	}
@@ -443,7 +486,71 @@ int cp(char **liste_argument,int nb_arg_cmd,shell *tsh)
 }
 int rm(char **liste_argument,int nb_arg_cmd,shell *tsh)
 {
-	printf("rm en construction\n");
+	int option = (recherche_option(liste_argument,nb_arg_cmd)!=NULL);
+	for(int i = 1; i < nb_arg_cmd; i++)
+	{
+		if (liste_argument[i][0] == '-')
+			continue;
+		char * simple = malloc(strlen(liste_argument[i]) + strlen(tsh->repertoire_courant)+3);
+		strcpy(simple,tsh->repertoire_courant);
+		strcat(simple,"/");
+		strcat(simple,liste_argument[i]);
+		int dossier = 0;
+		if (simple[strlen(simple)-1] != '/')
+		{
+			strcat(simple,"/");
+		}
+		else
+			dossier = 1;
+		char * simple2 = simplifie_chemin(simple);
+		
+		if (contexteTarball(simple2))
+		{
+			int index = recherche_fich_tar(simple2);
+			//Si on doit supprimer un fichier  .tar
+			if (index == strlen(simple2))
+			{
+				printf("%s\n",liste_argument[i]);
+			}
+			else
+			{
+				char *tar = malloc(strlen(simple2));
+				strncpy(tar,simple2,index);
+				char *file_to_rm = malloc(strlen(simple2));
+				strcpy(file_to_rm,&simple2[index]);
+				if (dossier == 0)
+					file_to_rm[strlen(file_to_rm)-1] = '\0';
+				tar[strlen(tar)-1] = '\0';
+				supprimer_fichier_tar(tar,file_to_rm,option);
+			}
+		}
+		else
+		{
+			if (option == 0)
+			{
+				simple2[strlen(simple2)-1] = '\0';
+				if (unlink(simple2) == -1)
+				{
+					char * error = malloc(1024);
+					sprintf(error,"rm %s ",simple2);
+					perror(error);
+					free(error);
+				}
+			}
+			else
+			{
+				if (fork()==0)
+				{
+					execlp("rm","rm","-r",liste_argument[i],NULL);
+					exit(0);
+				}
+				else
+					wait(NULL);
+			}
+		}
+		simple = NULL;
+		simple2 =NULL;
+	}
 	return 0;
 }
 int mkdir_tar(char **liste_argument,int nb_arg_cmd,shell *tsh)

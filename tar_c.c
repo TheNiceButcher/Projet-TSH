@@ -58,7 +58,7 @@ char **list_fich(char *tar)
 			{
 				unsigned long taille;
 				sscanf(entete.size,"%lo",&taille);
-				lseek(fd,((taille) / 512)*512,SEEK_CUR);
+				lseek(fd,((taille + 512 -1) / 512)*512,SEEK_CUR);
 			}
 			taille_archive++;
 		}
@@ -90,7 +90,7 @@ int affiche_fichier_tar(char *tar,char*file)
 	if (fd==-1)
 	{
 		char *error = malloc(1024);
-		sprintf(error,"Erreur list_fich %s",tar);
+		sprintf(error,"Erreur affiche_fichier_tar %s",tar);
 		perror(error);
 		free(error);
 		return 0;
@@ -101,7 +101,7 @@ int affiche_fichier_tar(char *tar,char*file)
 		//Si nous sommes dans une entete et que nous sommes pas dans un entete de fin de fichier
 		if (entete.name[0] != '\0' && check_checksum(&entete))
 		{
-			//On rajoute le nom dans la liste
+			//On affiche le fichier
 			if(strcmp(file,entete.name)==0)
 			{
 				char buffer[512];
@@ -116,15 +116,117 @@ int affiche_fichier_tar(char *tar,char*file)
 				}
 				return 1;
 			}
+			unsigned long taille;
+			sscanf(entete.size,"%lo",&taille);
+			lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
 
-				unsigned long taille;
-				sscanf(entete.size,"%lo",&taille);
-				lseek(fd,((taille) / 512)*512,SEEK_CUR);
 
 		}
 
 	}
 	printf("Fichier %s introuvable\n",file);
+	return 0;
+}
+int supprimer_fichier_tar(char *tar,char *file,int option)
+{
+	int fd,fd_copie,lus;
+	char *file2 = malloc(strlen(file)+3);
+	strcpy(file2,file);
+	strcat(file2,"/");
+	struct posix_header entete;
+	fd = open(tar,O_RDWR);
+	fd_copie = open(".supprimer_fichier_tar",O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
+	if (fd==-1)
+	{
+		char *error = malloc(1024);
+		sprintf(error,"Erreur supprimer_fichier_tar %s",tar);
+		perror(error);
+		free(error);
+		return 0;
+	}
+	if (fd_copie == -1)
+	{
+		printf("Erreur supprimer_fichier_tar\n");
+		return 0;
+	}
+	int trouvee = 0;
+	unsigned long taille;
+	while ((lus=read(fd,&entete,BLOCKSIZE)) > 0)
+	{
+		if (trouvee == 0)
+		{
+			//Si nous sommes dans une entete et que nous sommes pas dans un entete de fin de fichier
+			if (entete.name[0] != '\0' && check_checksum(&entete))
+			{
+				if(strcmp(file,entete.name)==0||strcmp(file2,entete.name)==0)
+				{
+					if (entete.typeflag == '5' && !option)
+					{
+						printf("rm %s : est un dossier\n",file);
+						return 0;
+					}
+					sscanf(entete.size,"%lo",&taille);
+					lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+					trouvee = 1;
+				}
+				else
+				{
+					write(fd_copie,&entete,lus);
+				}
+
+			}
+			else
+			{
+				write(fd_copie,&entete,lus);
+			}
+		}
+		else
+		{
+			if (option)
+			{
+				if (file[strlen(file)-1]=='/')
+				{
+					if (memmem(entete.name,strlen(file),file,strlen(file)))
+					{
+						sscanf(entete.size,"%lo",&taille);
+						lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+					}
+					else
+					{
+						write(fd_copie,&entete,lus);
+					}
+				}
+				else
+				{
+					if (memmem(entete.name,strlen(file2),file2,strlen(file2)))
+					{
+						sscanf(entete.size,"%lo",&taille);
+						lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+					}
+					else
+						write(fd_copie,&entete,lus);
+				}
+			}
+			else
+			{
+				write(fd_copie,&entete,lus);
+			}
+		}
+
+	}
+	close(fd_copie);
+	fd_copie = open(".supprimer_fichier_tar",O_RDONLY);
+	lseek(fd,0,SEEK_SET);
+	while ((lus=read(fd_copie,&entete,BLOCKSIZE)) > 0)
+	{
+		write(fd,&entete,lus);
+
+	}
+	if (!trouvee)
+		printf("rm %s : fichier ou dossier introuvable\n",file);
+	close(fd);
+	close(fd_copie);
+	//unlink(".supprimer_fichier_tar");
 	return 0;
 }
 #endif
