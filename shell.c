@@ -67,6 +67,7 @@ char *decoup_nom_fich(char *chemin,int *index)
 	*index = i;
 	char *fichier = malloc(lg_mot + 1);
 	strncpy(fichier,&chemin[debut_mot],lg_mot);
+	fichier[lg_mot] = '\0';
 	return fichier;
 }
 /*
@@ -74,6 +75,7 @@ Simplifie le chemin absolu en enlevant les .. et .
 */
 char *simplifie_chemin(char *chemin)
 {
+	//printf("chemin %s\n",chemin);
 	if (chemin == NULL)
 		return NULL;
 	else

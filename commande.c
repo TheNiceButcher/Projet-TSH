@@ -51,12 +51,13 @@ int contexteTarball(char const *chemin)
 			i++;
 			char *fichier = malloc(lg_mot + 1);
 			strncpy(fichier,&chemin[debut_mot],lg_mot);
+			fichier[strlen(fichier)] = '\0';
 			if (estTarball(fichier))
 			{
 				free(fichier);
 				return 1;
 			}
-			free(fichier);
+			fichier = NULL;
 		}
 		return 0;
 	}
@@ -166,11 +167,16 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				//Si oui, on verifie si les arguments ont un contexte tar ou non
 				for(;j < nb_arg_cmd;j++)
 				{
+					char *absol_path = malloc(strlen(liste_argument[j])+strlen(tsh->repertoire_courant)+3);
+					strcpy(absol_path,tsh->repertoire_courant);
+					strcat(absol_path,"/");
+					strcat(absol_path,liste_argument[j]);
 					//Si on est dans un contexte tar et on , on arrete la boucle
-					if (contexteTarball(liste_argument[j]) && a_bonnes_options)
+					if (contexteTarball(absol_path) && a_bonnes_options)
 					{
 						break;
 					}
+					absol_path = NULL;
 				}
 				//Si la boucle est alle juste qu'au bout et que la commande n'est ni cd ni pwd, on lance exec
 				if (j==nb_arg_cmd && i != 0 && i != 6)
@@ -178,7 +184,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					int fils = fork();
 					if (fils == -1)
 					{
-						perror("");
+						perror("fork traitement_commandeTar");
 						free(nom_commande);
 						return 1;
 					}
@@ -224,10 +230,12 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		//Avec l'option -l
 		if (option)
 		{
+			//OPtion -l pour un fichier dans un tar (a faire)
 			if (contexteTarball(liste_argument[i]))
 			{
 				printf("%s:\n",liste_argument[i]);
 			}
+			//Option -l pour un fichier n'etant pas dans un tar
 			else
 			{
 				if (fork()==0)
@@ -248,10 +256,11 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			strcat(fichier,liste_argument[i]);
 			char *simplified_path = malloc(1024);
 			strcpy(simplified_path,simplifie_chemin(fichier));
-			if (contexteTarball(simplified_path) /*|| tsh->tarball == 1*/)
+			//Fichier dans un tarball
+			if (contexteTarball(simplified_path))
 			{
 				simplified_path[strlen(simplified_path)-1] = '\0';
-				//Fichier .tar
+				//ls sur un Fichier .tar
 				if (strcmp(&simplified_path[strlen(simplified_path)-4],".tar")==0)
 				{
 					char **list = list_fich(simplified_path);
@@ -261,15 +270,16 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					}
 					else
 					{
-						int i = 0;
-						while (list[i]!=NULL)
+						int k = 0;
+						while (list[k]!=NULL)
 						{
-							printf("%s\n",list[i]);
-							i++;
+							printf("%s\n",list[k]);
+							k++;
 						}
 					}
 					continue;
 				}
+				//ls sur un fichier dans un fichier .tar
 				else
 				{
 					char *tar = malloc(256);
@@ -299,19 +309,29 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 						}
 						else
 						{
-							int i = 0;
-							while (list[i]!=NULL)
+							int k = 0;
+							int trouve = 0;
+							while (list[k]!=NULL)
 							{
-								if (strncmp(list[i],file_to_find,strlen(simplified_path) - index - 1)==0)
-									printf("%s\n",list[i]);
-								i++;
+								if (strncmp(list[k],file_to_find,strlen(simplified_path) - index - 1)==0)
+								{
+									if (list[k][strlen(simplified_path) - index] == '\0'||list[k][strlen(simplified_path) - index] == '/')
+									{
+										printf("%s\n",list[k]);
+										trouve++;
+									}
+								}
+								k++;
 							}
+							if (!trouve)
+								printf("ls %s: Aucun dossier ni fichier de ce nom\n",liste_argument[i]);
 						}
 						continue;
 					}
 				}
 
 			}
+			//Fichier n'etant pas dans un .tar
 			else
 			{
 				if(fork()==0)
@@ -320,30 +340,7 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					exit(0);
 				}
 				wait(NULL);
-				/*struct stat file;
-				if (stat(simplified_path,&file) == -1)
-				{
-					perror("ls");
-				}
-				//Si c'est un fichier regulier, on affiche juste le nom
-				if (S_ISREG(file.st_mode))
-					printf("%s\n",liste_argument[i]);
-				//Si c'est un repertoire, on le parcourt et on affiche les fichiers contenus dedans
-				if (S_ISDIR(file.st_mode))
-				{
-					DIR * repr = opendir(fichier);
-					struct dirent *dir = readdir(repr);
-					while (dir)
-					{
-						if (dir->d_name[0] != '.')
-						{
-							printf("%s\n",dir->d_name);
-						}
-						dir = readdir(repr);
-					}
-					closedir(repr);
-				}
-			*/}
+			}
 			free(simplified_path);
 		}
 	}
@@ -503,14 +500,28 @@ int rm(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		else
 			dossier = 1;
 		char * simple2 = simplifie_chemin(simple);
-		
+
 		if (contexteTarball(simple2))
 		{
 			int index = recherche_fich_tar(simple2);
 			//Si on doit supprimer un fichier  .tar
 			if (index == strlen(simple2))
 			{
-				printf("%s\n",liste_argument[i]);
+				if (option)
+				{
+					simple2[strlen(simple2)-1] = '\0';
+					if(unlink(simple2)==-1)
+					{
+						char *error = malloc(1024);
+						sprintf(error,"rm %s :",simple2);
+						perror(error);
+						free(error);
+					}
+				}
+				else
+				{
+					printf("rm %s: Veuillez utiliser l'option -r pour supprimer les .tar\n",liste_argument[i]);
+				}
 			}
 			else
 			{
