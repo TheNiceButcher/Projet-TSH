@@ -71,11 +71,10 @@ char *decoup_nom_fich(char *chemin,int *index)
 	return fichier;
 }
 /*
-Simplifie le chemin absolu en enlevant les .. et .
+Simplifie le chemin absolu en enlevant les .. et . contenu dans le chemin en argument
 */
 char *simplifie_chemin(char *chemin)
 {
-	//printf("chemin %s\n",chemin);
 	if (chemin == NULL)
 		return NULL;
 	else
@@ -86,15 +85,18 @@ char *simplifie_chemin(char *chemin)
 		char *name = decoup_nom_fich(chemin,&index);
 		while(name != NULL)
 		{
+			//Présence .
 			if (strcmp(name,".") == 0)
 			{
 				name = decoup_nom_fich(chemin,&index);
 				continue;
 			}
+			//Présence ..
 			if ((strcmp(name,"..") == 0))
 			{
 				i--;
 				i--;
+				//.. signifiant dossier parent en bash, il suffit de 'supprimer' le dossier précédant le .. du chemin
 				while(nvx_chemin[i] != '/')
 				{
 					i--;
@@ -103,6 +105,7 @@ char *simplifie_chemin(char *chemin)
 				name = decoup_nom_fich(chemin,&index);
 				continue;
 			}
+			//Dossier autre
 			else
 			{
 				strcpy(&nvx_chemin[i],name);
@@ -220,7 +223,7 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				int i = 0;
 				int j = 0;
 				int fin = 0;
-		
+
 				int fd1[2],fd2[2];
 				char ** commande = malloc(20*sizeof(char*));
 			     while(liste_argument[j] != NULL && fin!= 1){

@@ -161,17 +161,18 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					}
 				}
 			}
+			//Contexte non tarball
 			if (tsh->tarball == 0)
 			{
 				int j = 1;
-				//Si oui, on verifie si les arguments ont un contexte tar ou non
+				//On vérifie alors si un des arguments est dans un tarball on non
 				for(;j < nb_arg_cmd;j++)
 				{
 					char *absol_path = malloc(strlen(liste_argument[j])+strlen(tsh->repertoire_courant)+3);
 					strcpy(absol_path,tsh->repertoire_courant);
 					strcat(absol_path,"/");
 					strcat(absol_path,liste_argument[j]);
-					//Si on est dans un contexte tar et on , on arrete la boucle
+					//Si on est dans un contexte tar et qu'on a les bonnes options, on arrete la boucle
 					if (contexteTarball(absol_path) && a_bonnes_options)
 					{
 						break;
@@ -199,7 +200,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				}
 
 			}
-
+			//Cas contexte tarball et bonnes options
 			tab[i](liste_argument,nb_arg_cmd,tsh);
 			return 0;
 		}
@@ -238,6 +239,7 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			//Option -l pour un fichier n'etant pas dans un tar
 			else
 			{
+				//N'etant pas dans un .tar, un appel à execlp suffit
 				if (fork()==0)
 				{
 					printf("%s:\n",liste_argument[i]);
@@ -282,6 +284,7 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				//ls sur un fichier dans un fichier .tar
 				else
 				{
+					//Recherche fichier .tar contenant le fichier
 					char *tar = malloc(256);
 					int index = 0;
 					tar = decoup_nom_fich(simplified_path,&index);
@@ -309,6 +312,7 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 						}
 						else
 						{
+							//Recherche du fichier dans le fichier .tar
 							int k = 0;
 							int trouve = 0;
 							while (list[k]!=NULL)
@@ -500,13 +504,14 @@ int rm(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		else
 			dossier = 1;
 		char * simple2 = simplifie_chemin(simple);
-
+		//Fichier dans un .tar
 		if (contexteTarball(simple2))
 		{
 			int index = recherche_fich_tar(simple2);
 			//Si on doit supprimer un fichier  .tar
 			if (index == strlen(simple2))
 			{
+				//Considerant les .tar comme des dossiers, on attende l'option pour le supprimer
 				if (option)
 				{
 					simple2[strlen(simple2)-1] = '\0';
@@ -523,6 +528,7 @@ int rm(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					printf("rm %s: Veuillez utiliser l'option -r pour supprimer les .tar\n",liste_argument[i]);
 				}
 			}
+			//Suppression dans un .tar
 			else
 			{
 				char *tar = malloc(strlen(simple2));
@@ -537,6 +543,7 @@ int rm(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		}
 		else
 		{
+			//Suppression fichier en dehors d'un .tar
 			if (option == 0)
 			{
 				simple2[strlen(simple2)-1] = '\0';
@@ -583,24 +590,24 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
       printf("erreur nombre d'arguments incorrect\n");
       exit(EXIT_FAILURE);
     }
-  
+
      //copier source dans la variable src
     src = malloc(strlen(liste_argument[1]) + 1);
     strcpy(src, liste_argument[1]);
-    
+
      //copier destination dans la variable dest
     dest = malloc(strlen(liste_argument[2]) + 1);
     strcpy(dest, liste_argument[2]);
-    
+
      //verifier si le fichier source existe
     if (stat(src, &stat_src)== -1) {
         printf("le fichier %s n'existe pas\n",src);
         exit(EXIT_SUCCESS);
     }
-      //verifier si dest est un chemin 
+      //verifier si dest est un chemin
      if(dest[0]=='/')
         {
-            strcat(dest,"/");			
+            strcat(dest,"/");
             strcat(dest,src);
               if(rename(src,dest)!=0)
                 printf("Error:\nDirectory not found\n");
@@ -611,7 +618,7 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
                  strcpy(src_final,tsh->repertoire_courant);
                  strcat(src_final,"/");
                  strcat(src_final,src);
-  
+
               //construction de la variable dest_final
                 dest_final = malloc(strlen(dest) + 1 + strlen(tsh->repertoire_courant) + 1 + strlen(src) + 1);
                 strcpy(dest_final,tsh->repertoire_courant);
@@ -626,9 +633,9 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 
                 free(src_final);
                 free(dest_final);
-        
+
          }
-    
+
      free(src);
      free(dest);
      exit(EXIT_SUCCESS);
@@ -664,6 +671,7 @@ int cat(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			//Fichier dans un .tar
 			else
 			{
+				//Recherche du .tar contenant l'argument
 				char *tar = malloc(1024);
 				int index = recherche_fich_tar(simple);
 				strncpy(tar,simple,index);

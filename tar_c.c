@@ -14,7 +14,10 @@
 #include "tar_c.h"
 #include "tar.h"
 /*
-Affiche les fichiers d'un tar
+Fichier qui fait les actions demandé sur les tar
+*/
+/*
+REnvoie le nom des fichiers contenus dans un tar
 */
 char **list_fich(char *tar)
 {
@@ -80,7 +83,8 @@ char **list_fich(char *tar)
 
 }
 /*
-Affiche le contenu du fichier file et retourne 1 si file est dans tar
+Affiche le contenu du fichier file et retourne 1 si file est dans tar. Sinon,renvoie
+0 et affiche une erreur
 */
 int affiche_fichier_tar(char *tar,char*file)
 {
@@ -127,6 +131,10 @@ int affiche_fichier_tar(char *tar,char*file)
 	printf("Fichier %s introuvable\n",file);
 	return 0;
 }
+/*
+Supprime le fichier en argument du fichier .tar en argument.
+REnvoie 0 en cas d'echec, 1 sinon
+*/
 int supprimer_fichier_tar(char *tar,char *file,int option)
 {
 	int fd,fd_copie,lus;
@@ -135,6 +143,7 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 	strcat(file2,"/");
 	struct posix_header entete;
 	fd = open(tar,O_RDWR);
+	//Utilisation d'un fichier auxiliaire
 	fd_copie = open(".supprimer_fichier_tar",O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
 	if (fd==-1)
 	{
@@ -158,8 +167,10 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 			//Si nous sommes dans une entete et que nous sommes pas dans un entete de fin de fichier
 			if (entete.name[0] != '\0' && check_checksum(&entete))
 			{
+				//Si c'est le nom du fichier que l'on veut supprimer, on ne l'écrit pas le fichier auxiliaire
 				if(strcmp(file,entete.name)==0||strcmp(file2,entete.name)==0)
 				{
+					//Option -r absente
 					if (entete.typeflag == '5' && !option)
 					{
 						printf("rm %s : est un dossier\n",file);
@@ -169,6 +180,7 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 					lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
 					trouvee = 1;
 				}
+				//Sinon on continue de l'ecrire
 				else
 				{
 					write(fd_copie,&entete,lus);
@@ -180,10 +192,13 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 				write(fd_copie,&entete,lus);
 			}
 		}
+		//On a trouve le fichier a supprimer
 		else
 		{
+			//OPtion -r présente
 			if (option)
 			{
+				//Non ecriture des fichiers du dossier a supprimer
 				if (file[strlen(file)-1]=='/')
 				{
 					if (memmem(entete.name,strlen(file),file,strlen(file)))
@@ -214,6 +229,7 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 		}
 
 	}
+	//Copie du fichier auxiliaire dans le fichier en argument
 	close(fd_copie);
 	fd_copie = open(".supprimer_fichier_tar",O_RDONLY);
 	lseek(fd,0,SEEK_SET);
