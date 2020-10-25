@@ -1,9 +1,9 @@
 Projet TSH 2020-2021
 # Stratégie pour répondre aux besoin du projet:
 Ce projet portant sur un shell traitant les fichiers `.tar` comme des répertoires, il faut répondre aux besoins suivants:
-	- Récupérer une commande transmise par l'utilisateur
-	- L'analyser pour savoir quoi faire
-	- Exécuter les actions voulues par l'utilisateur via la commande
+	* Récupérer une commande transmise par l'utilisateur
+	* L'analyser pour savoir quoi faire
+	* Exécuter les actions voulues par l'utilisateur via la commande
 
 
 * Création d'un shell
@@ -28,8 +28,8 @@ S'il y en a, on parcourt alors la liste d'arguments, en s'arrêtant à chaque sy
 * Exécution de la commande
 
 Avec ce résultat de `estCommandeTar`, on a alors deux possibilités:
-	- On a une commande ne gérant pas les tarballs, on appelle alors `execlp`(bibliothèque standard) qui effectue la commande comme dans le bash,
-	- Sinon, on appelle la fonction `traitement_commandeTar` avec la liste d'arguments, sa taille et un pointeur sur la structure `shell` définie avant la boucle du programme.
+	* On a une commande ne gérant pas les tarballs, on appelle alors `execlp`(bibliothèque standard) qui effectue la commande comme dans le bash,
+	* Sinon, on appelle la fonction `traitement_commandeTar` avec la liste d'arguments, sa taille et un pointeur sur la structure `shell` définie avant la boucle du programme.
 
 Dans le second cas, `traitement_commandeTar` vérifie si les options sont compatibles(avec `recherche_option`) et si le contexte est dans un tarball(`tarball` == 1 dans la structure `shell`) ou que l'un des arguments l'est(avec `contexteTarball`). Si c'est le cas, on appelle alors une fonction auxiliaire(qui porte le même nom ou presque) qui reproduit le comportement de la commande (tout ça à l'aide d'un pointeur de fonctions sur les fonctions auxiliaires). Sinon, dans la situation où les options ne sont pas bonnes ou que les arguments ne sont pas dans un tarball, on utilise `execlp` avec la liste des arguments sauf si le mot commande est `cd` et `pwd`. La raison étant que leur comportement dans `exclp` ne sied pas au projet : `cd` dans `exclp` ne change pas de répertoire courant et `pwd` ne donnerait que le répertoire courant 'réel' du programme, à savoir le dernier répertoire avant de rentrer dans un tarball par exemple. De ce fait, quelque soit le contexte, ce sont toujours leur fonction auxiliaire qui est appelée.
 
@@ -41,8 +41,8 @@ L'action voulue est donc effectuée. On repart alors pour un autre tour du boucl
 # Architecture logicielle :
 
 Voici comment est décomposé le projet:
-	- tsh.c contient la boucle principale du programme. Il initialise la structure `shell` utilisée dans la suite du programme et appelle les fonctions `recuperer_commande` et `traitement_commande`;
-	- commande .c/.h définit les fonctions auxiliaires des commandes que l'on souhaite effectuer sur les tarballs, et d'autres fonctions utiles pour ces dernières (`contexteTarball`,`estTarball` pour savoir si on est dans un contexte .tar ou `recherche_option` pour connaître les options d'une commande étant dans `estCommandeTar`);
-	- shell .c/.h gère la partie 'shell' du projet, avec la création de la structure `shell` et des fonctions `recuperer_commande`,`traitement_commande` ou encore des fonctions auxiliaires de ces dernières,
-	- tar_c .c/.h effectue les différentes actions sur les tarballs voulues, comme `list_fich` qui renvoie la liste des fichiers dans un .tar pouvant être utile pour `ls` ou encore `supprimer_fichier_tar` pour `rm`;
-	- tar.h, repris du TP1, permet d'utiliser la structure posix_header, indispensable pour parcourir les tarballs et effectuer des commandes dessus;
+	* tsh.c contient la boucle principale du programme. Il initialise la structure `shell` utilisée dans la suite du programme et appelle les fonctions `recuperer_commande` et `traitement_commande`;
+	* commande .c/.h définit les fonctions auxiliaires des commandes que l'on souhaite effectuer sur les tarballs, et d'autres fonctions utiles pour ces dernières (`contexteTarball`,`estTarball` pour savoir si on est dans un contexte .tar ou `recherche_option` pour connaître les options d'une commande étant dans `estCommandeTar`);
+	* shell .c/.h gère la partie 'shell' du projet, avec la création de la structure `shell` et des fonctions `recuperer_commande`,`traitement_commande` ou encore des fonctions auxiliaires de ces dernières,
+	* tar_c .c/.h effectue les différentes actions sur les tarballs voulues, comme `list_fich` qui renvoie la liste des fichiers dans un .tar pouvant être utile pour `ls` ou encore `supprimer_fichier_tar` pour `rm`;
+	* tar.h, repris du TP1, permet d'utiliser la structure posix_header, indispensable pour parcourir les tarballs et effectuer des commandes dessus;
