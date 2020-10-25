@@ -183,13 +183,13 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		}
 		else
 		{
-
+            //compter le nombre de commande entre pipe
 		    for(int i = 0; i <nb_arg_cmd; i++){
                if (strcmp(liste_argument[i], "|") == 0){
                  cmds++;
               }
             }
-            cmds++;
+            cmds++;//nombre de commande entre  pipe si cmds est different de 1
 
 		    //s'il n y a pas de pipe
 		    if(cmds==1)
@@ -220,7 +220,7 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				int i = 0;
 				int j = 0;
 				int fin = 0;
-				int end = 0;
+		
 				int fd1[2],fd2[2];
 				char ** commande = malloc(20*sizeof(char*));
 			     while(liste_argument[j] != NULL && fin!= 1){
@@ -231,7 +231,7 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			              if (liste_argument[j] == NULL){
 
 			                  // la variable fin va nous indiquer si on a lis tout les commandes
-			                  end = 1;
+			                  fin = 1;
 			                  k++;
 			                  break;
 			               }
