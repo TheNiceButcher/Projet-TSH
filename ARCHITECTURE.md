@@ -40,7 +40,7 @@ L'action voulue est donc effectuée. On repart alors pour un autre tour du boucl
 
 # Architecture logicielle :
 
-Voici comment est décomposé le projet:
+* Voici comment est décomposé le projet:
 	* tsh.c contient la boucle principale du programme. Il initialise la structure `shell` utilisée dans la suite du programme et appelle les fonctions `recuperer_commande` et `traitement_commande`;
 	* commande .c/.h définit les fonctions auxiliaires des commandes que l'on souhaite effectuer sur les tarballs, et d'autres fonctions utiles pour ces dernières (`contexteTarball`,`estTarball` pour savoir si on est dans un contexte .tar ou `recherche_option` pour connaître les options d'une commande étant dans `estCommandeTar`);
 	* shell .c/.h gère la partie 'shell' du projet, avec la création de la structure `shell` et des fonctions `recuperer_commande`,`traitement_commande` ou encore des fonctions auxiliaires de ces dernières,
