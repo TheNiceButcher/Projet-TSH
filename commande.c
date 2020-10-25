@@ -565,8 +565,9 @@ int rmdir_tar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 }
 int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 {
-       struct stat stat_src;
-       char *src, *dest, *src_final, *dest_final;
+     struct stat stat_src;
+     char *src, *dest, *src_final, *dest_final;
+     //controler le nombre d'arguments
     if (nb_arg_cmd!= 3) {
       printf("erreur nombre d'arguments incorrect\n");
       exit(EXIT_FAILURE);
@@ -590,44 +591,36 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
         {
             strcat(dest,"/");			
             strcat(dest,src);
-            if(rename(src,dest)!=0)
+              if(rename(src,dest)!=0)
                 printf("Error:\nDirectory not found\n");
-            
-        }
-    else {
-      //construction de la variable src_final
-  src_final = malloc(strlen(src) + 1 + strlen(tsh->repertoire_courant) + 1);
-  strcpy(src_final,tsh->repertoire_courant);
-  strcat(src_final,"/");
-  strcat(src_final,src);
+         }
+     else {
+              //construction de la variable src_final
+                 src_final = malloc(strlen(src) + 1 + strlen(tsh->repertoire_courant) + 1);
+                 strcpy(src_final,tsh->repertoire_courant);
+                 strcat(src_final,"/");
+                 strcat(src_final,src);
   
-     //construction de la variable dest_final
-  dest_final = malloc(strlen(dest) + 1 + strlen(tsh->repertoire_courant) + 1 + strlen(src) + 1);
-  strcpy(dest_final,tsh->repertoire_courant);
-  strcat(dest_final,"/");
-  strcat(dest_final,dest);
-  strcat(dest_final,"/");
-  strcat(dest_final,src);
+              //construction de la variable dest_final
+                dest_final = malloc(strlen(dest) + 1 + strlen(tsh->repertoire_courant) + 1 + strlen(src) + 1);
+                strcpy(dest_final,tsh->repertoire_courant);
+                strcat(dest_final,"/");
+                strcat(dest_final,dest);
+                strcat(dest_final,"/");
+                strcat(dest_final,src);
 
-  if(rename(src_final,dest_final) != 0){
-    printf("rename failed with error");
-  }
+                    if(rename(src_final,dest_final) != 0){
+                      printf("rename failed with error");
+                    }
 
-  free(src_final);
-  free(dest_final);
-  
-
-  exit(EXIT_SUCCESS);
+                free(src_final);
+                free(dest_final);
         
-        
-        
-        
-        
-    }
+         }
     
-    free(src);
-    free(dest);
-    
+     free(src);
+     free(dest);
+     exit(EXIT_SUCCESS);
 
 
 
