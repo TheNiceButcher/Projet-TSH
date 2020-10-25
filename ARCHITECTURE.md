@@ -1,6 +1,6 @@
 Projet TSH 2020-2021
 # Stratégie pour répondre aux besoin du projet:
-Ce projet portant sur un shell traitant les fichiers `.tar` comme des répertoires, il faut répondre aux besoins suivants:
+* Ce projet portant sur un shell traitant les fichiers `.tar` comme des répertoires, il faut répondre aux besoins suivants:
 	* Récupérer une commande transmise par l'utilisateur
 	* L'analyser pour savoir quoi faire
 	* Exécuter les actions voulues par l'utilisateur via la commande
@@ -27,7 +27,7 @@ S'il y en a, on parcourt alors la liste d'arguments, en s'arrêtant à chaque sy
 
 * Exécution de la commande
 
-Avec ce résultat de `estCommandeTar`, on a alors deux possibilités:
+* Avec ce résultat de `estCommandeTar`, on a alors deux possibilités:
 	* On a une commande ne gérant pas les tarballs, on appelle alors `execlp`(bibliothèque standard) qui effectue la commande comme dans le bash,
 	* Sinon, on appelle la fonction `traitement_commandeTar` avec la liste d'arguments, sa taille et un pointeur sur la structure `shell` définie avant la boucle du programme.
 
