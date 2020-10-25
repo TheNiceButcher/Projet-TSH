@@ -1,0 +1,14 @@
+Mode d'emploi
+	-Lancement du shell tsh
+		1) Effectuer la commande `make`
+		2) Exécuter `./tsh`
+		Une fois dans le shell, vous vous retrouvez face à ça :
+		>
+		avec une ligne vide après le >, prête à attendre votre commande.
+	-Effectuer une commande
+		Pour effectuer une commande, il suffit de la taper et d'appuyer sur "Entrée".
+		Si par exemple, on veut regarder les fichiers présents dans le répertoire courant, alors on peut taper:
+		>ls
+		Et cela affichera tous les fichiers dans le répertoire courant.
+	-Quitter le shell
+		Pour quitter le shell tsh, il suffit de taper la commande 'exit'. Cela quittera la shell et affichera le message 'Au revoir'
