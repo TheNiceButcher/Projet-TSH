@@ -216,6 +216,7 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	//Si on a pas d'argument pour ls, on considere le repertoire courant comme argument
 	if (nb_arg_cmd == 1)
 	{
+
 		liste_argument[1] = malloc(2);
 		strcpy(liste_argument[1],".");
 		nb_arg_cmd++;
@@ -262,6 +263,10 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			if (contexteTarball(simplified_path))
 			{
 				simplified_path[strlen(simplified_path)-1] = '\0';
+				if (simplified_path[strlen(simplified_path)-1] == '/')
+				{
+					simplified_path[(strlen(simplified_path))-1] = '\0';
+				}
 				//ls sur un Fichier .tar
 				if (strcmp(&simplified_path[strlen(simplified_path)-4],".tar")==0)
 				{
@@ -272,12 +277,38 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					}
 					else
 					{
+						char **to_print = malloc(25*sizeof(char *));
+						for (int f = 0; f < 25;f++)
+						{
+							to_print[f] = NULL;
+						}
+						int index = 0;
 						int k = 0;
+						int d = 0;
 						while (list[k]!=NULL)
 						{
-							printf("%s\n",list[k]);
+							for(;d < index;d++)
+							{
+								if (strncmp(to_print[d],list[k],strlen(to_print[d])) == 0)
+								{
+									printf("%s\n",to_print[d]);
+									break;
+								}
+							}
+							if (d == index)
+							{
+								printf("%s\n",list[k]);
+								to_print[d] = malloc(strlen(list[k]));
+								strcpy(to_print[d],list[k]);
+								d++;
+							}
 							k++;
 						}
+						for (int f = 0; f < index;f++)
+						{
+							to_print[f] = NULL;
+						}
+						free(to_print);
 					}
 					continue;
 				}
@@ -306,6 +337,7 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 						char **list = list_fich(new_tar);
 						char *file_to_find = malloc(1024);
 						strcpy(file_to_find,&simplified_path[index]);
+
 						if (list == NULL)
 						{
 							printf("Erreur\n");
@@ -338,7 +370,12 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			//Fichier n'etant pas dans un .tar
 			else
 			{
-				if(fork()==0)
+				int fils = fork();
+				if (fils == -1)
+				{
+
+				}
+				if(fils==0)
 				{
 					execlp("ls","ls",liste_argument[i],NULL);
 					exit(0);
@@ -557,7 +594,13 @@ int rm(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			}
 			else
 			{
-				if (fork()==0)
+				int fils = fork();
+				if (fils == -1)
+				{
+					perror("fork rm");
+					continue;
+				}
+				if (fils==0)
 				{
 					execlp("rm","rm","-r",liste_argument[i],NULL);
 					exit(0);
@@ -567,13 +610,39 @@ int rm(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			}
 		}
 		simple = NULL;
-		simple2 =NULL;
+		simple2 = NULL;
 	}
 	return 0;
 }
 int mkdir_tar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 {
-	printf("mdir en construction\n");
+	for(int i = 1; i < nb_arg_cmd; i++)
+	{
+		char *fichier = malloc(strlen(liste_argument[i])+strlen(tsh->repertoire_courant)+1);
+		strcpy(fichier,tsh->repertoire_courant);
+		strcat(fichier,"/");
+		strcat(fichier,liste_argument[i]);
+		strcpy(fichier,simplifie_chemin(fichier));
+		if (contexteTarball(fichier))
+		{
+			printf("A faire\n");
+		}
+		else
+		{
+			int fils = fork();
+			if (fils == -1)
+			{
+				perror("fork mkdir");
+				continue;
+			}
+			if (fils == 0)
+			{
+				execlp("mkdir","mkdir",liste_argument[i],NULL);
+				exit(0);
+			}
+			wait(NULL);
+		}
+	}
 	return 0;
 }
 int rmdir_tar(char **liste_argument,int nb_arg_cmd,shell *tsh)
