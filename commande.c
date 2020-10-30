@@ -347,20 +347,54 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 							//Recherche du fichier dans le fichier .tar
 							int k = 0;
 							int trouve = 0;
+							char ** deja_affiche = malloc(20*sizeof(char*));
+							for(int h = 0; h < 20;h++)
+							{
+								deja_affiche[h] = NULL;
+							}
+							int i_deja_trouve = 0;
 							while (list[k]!=NULL)
 							{
 								if (strncmp(list[k],file_to_find,strlen(simplified_path) - index - 1)==0)
 								{
 									if (list[k][strlen(simplified_path) - index] == '\0'||list[k][strlen(simplified_path) - index] == '/')
 									{
-										printf("%s\n",list[k]);
-										trouve++;
+										int jpp = strlen(simplified_path) - index + 1;
+										char *fich_to_print = decoup_nom_fich(list[k],&jpp);
+										int d = 0;
+										for (; d < i_deja_trouve;d++)
+										{
+											if (strcmp(fich_to_print,deja_affiche[d])==0)
+												break;
+										}
+										if (d == i_deja_trouve && fich_to_print != NULL)
+										{
+											printf("%s",fich_to_print);
+											//Affichage d'un '/' en fin de ligne pour les repertoires
+											if (list[k][jpp-1] == '/')
+												printf("/\n");
+											else
+											{
+												printf("\n");
+											}
+											deja_affiche[i_deja_trouve] = malloc(strlen(fich_to_print)+1);
+											strcpy(deja_affiche[i_deja_trouve],fich_to_print);
+											i_deja_trouve++;
+											trouve++;
+										}
+										fich_to_print = NULL;
 									}
 								}
 								k++;
 							}
+							for(int h = 0; h < 20;h++)
+							{
+								deja_affiche[h] = NULL;
+							}
 							if (!trouve)
+							{
 								printf("ls %s: Aucun dossier ni fichier de ce nom\n",liste_argument[i]);
+							}
 						}
 						continue;
 					}
@@ -623,10 +657,20 @@ int mkdir_tar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		strcat(fichier,"/");
 		strcat(fichier,liste_argument[i]);
 		strcpy(fichier,simplifie_chemin(fichier));
+		//Contexte tar
 		if (contexteTarball(fichier))
 		{
-			printf("A faire\n");
+			int index = recherche_fich_tar(fichier);
+			if (index == strlen(fichier))
+			{
+				printf("Création de .tar %s\n",liste_argument[i]);
+			}
+			else
+			{
+				printf("Création de dossier dans .tar\n");
+			}
 		}
+		//En dehors d'un tar
 		else
 		{
 			int fils = fork();
