@@ -9,6 +9,9 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <fcntl.h>
+#include <time.h>
+#include <pwd.h>
+#include <grp.h>
 #include "shell.h"
 #include "commande.h"
 #include "tar_c.h"
@@ -155,7 +158,7 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 	}
 	if (fd_copie == -1)
 	{
-		printf("Erreur supprimer_fichier_tar\n");
+		write(STDERR_FILENO,"Erreur supprimer_fichier_tar\n",strlen("Erreur supprimer_fichier_tar\n"));
 		return 0;
 	}
 	int trouvee = 0;
@@ -173,7 +176,10 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 					//Option -r absente
 					if (entete.typeflag == '5' && !option)
 					{
-						printf("rm %s : est un dossier\n",file);
+						char *error = malloc(strlen(file)+strlen("rm  : est un dossier\n")+1);
+						sprintf(error,"rm %s : est un dossier\n",file);
+						write(STDERR_FILENO,error,strlen(error));
+						free(error);
 						return 0;
 					}
 					sscanf(entete.size,"%lo",&taille);
@@ -243,6 +249,70 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 	close(fd);
 	close(fd_copie);
 	//unlink(".supprimer_fichier_tar");
+	return 0;
+}
+int creation_repertoire_tar(char*tar,char*repr)
+{
+	char **fichiers_tar = list_fich(tar);
+	if (fichiers_tar == NULL)
+	{
+		printf("%s vide ou inexistant\n",tar);
+		return 1;
+	}
+	int index = 0;
+	while (fichiers_tar[index]!=NULL)
+	{
+		if (strcmp(fichiers_tar[index],repr)==0)
+		{
+			char error[strlen(repr)+strlen(tar)+strlen("mkdir  impossible : deja present dans \n") + 1];
+			sprintf(error,"mkdir %s impossible : deja present dans %s\n",repr,tar);
+			perror(error);
+			return 1;
+		}
+		index ++;
+	}
+	int fd = open(tar,O_RDONLY);
+	if(fd == -1)
+	{
+		char *error = malloc(1024);
+		sprintf(error,"Erreur creation_repertoire_tar %s",tar);
+		perror(error);
+		free(error);
+		return 0;
+	}
+	struct posix_header hd,hd2;
+	memcpy(hd.name,repr,strlen(repr));
+	sprintf(hd.mode,"0000777");
+    hd.typeflag = '5';
+	sprintf(hd.mtime,"%011lo",time(NULL));
+	sprintf(hd.uid,"%d",getuid());
+	sprintf(hd.gid,"%d",getgid());
+	sprintf(hd.uname,"%s",getpwuid(getuid())->pw_name);
+	sprintf(hd.gname,"%s",getgrgid(getgid())->gr_name);
+	sprintf(hd.size,"%011o",0);
+    strcpy(hd.magic,"ustar");
+	set_checksum(&hd);
+	if (!check_checksum(&hd))
+		perror("Checksum impossible");
+	unsigned int lus,taille = 0;
+	int nb_blocs = 0;
+	while ((lus = read(fd,&hd2,512))>0)
+	{
+		if (hd2.name[0] != '\0')
+		{
+			sscanf(hd2.size,"%o",&taille);
+			nb_blocs += 1 + ((taille + 512 - 1) / 512);
+			lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+		}
+		else
+		{
+			break;
+		}
+	}
+	fd = open(tar,O_WRONLY);
+	lseek(fd,nb_blocs*512,SEEK_SET);
+	write(fd,&hd,512);
+	close(fd);
 	return 0;
 }
 #endif

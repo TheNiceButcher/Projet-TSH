@@ -211,7 +211,11 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					if (pid==0)
 					{
 						if(execvp(nom_commande,liste_argument)==-1) //Si execvp renvoie -1, la commande n'existe pas
-							printf("Commande introuvable\n");
+						{
+							char error[strlen(nom_commande) + strlen("Commande   introuvable") + 1];
+							sprintf(error,"Commande %s introuvable\n",nom_commande);
+							write(STDERR_FILENO,error,strlen(error));
+						}
 						exit(0);
 					}
 					wait(NULL);
@@ -220,10 +224,10 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			//s'il y a des pipe
 			else
 			{////////////////
-			
+
 			  int i = 0;
 int cmds=0;
-int fd[2]; 
+int fd[2];
 int fd2[2];
 
 //compter le nombre de commande
@@ -237,7 +241,7 @@ for(int i = 0; i < nb_arg_cmd; i++){
 
        int j = 0;
        char ** commandes = malloc(20*sizeof(char*));
-    
+
        int fin= 0;
        pid_t pid;
 
@@ -249,7 +253,7 @@ for(int i = 0; i < nb_arg_cmd; i++){
               commandes[k] = liste_argument[j];
               j++;
               if (liste_argument[j] == NULL){
-                  
+
                   //la variable fin va nous indiquer si on a lis tout les commandes
                   fin = 1;
                   k++;
@@ -257,27 +261,27 @@ for(int i = 0; i < nb_arg_cmd; i++){
               }
               k++;
           }
-         
+
          commandes[k] = NULL;
           j++;
 
 if (i % 2 != 0){// si i est impaire
 
-           pipe(fd); 
+           pipe(fd);
 
        }
 
 else{
-           pipe(fd2); 
+           pipe(fd2);
        }
-       
+
 pid=fork();
 
-					
 
- if(pid==0){                                       
+
+ if(pid==0){
            //premier commande
-           if (i == 0){                         
+           if (i == 0){
 
                dup2(fd2[1], STDOUT_FILENO);
            }
@@ -289,16 +293,16 @@ pid=fork();
 
                    dup2(fd[0],STDIN_FILENO);
                }
-                 else{ 
+                 else{
 
                    dup2(fd2[0],STDIN_FILENO);
                }
 
 
-           } 
-          //si on est dans une commande qui est au millieu on doit utiliser 2 pipe un pour recuper 
+           }
+          //si on est dans une commande qui est au millieu on doit utiliser 2 pipe un pour recuper
           //sa sortie et lautre pour ecrire dans son entrer
-              else{ 
+              else{
                if (i % 2 != 0){
                    dup2(fd2[0],STDIN_FILENO);
                    dup2(fd[1],STDOUT_FILENO);
@@ -332,8 +336,8 @@ close(fd2[1]);
 waitpid(pid,NULL,0);
 i++;
 }
-			    
-			   
+
+
 			}
 
 			}

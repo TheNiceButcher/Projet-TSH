@@ -175,9 +175,10 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					//Si on est dans un contexte tar et qu'on a les bonnes options, on arrete la boucle
 					if (contexteTarball(absol_path) && a_bonnes_options)
 					{
+						free(absol_path);
 						break;
 					}
-					absol_path = NULL;
+					free(absol_path);
 				}
 				//Si la boucle est alle juste qu'au bout et que la commande n'est ni cd ni pwd, on lance exec
 				if (j==nb_arg_cmd && i != 0 && i != 6)
@@ -393,7 +394,10 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 							}
 							if (!trouve)
 							{
-								printf("ls %s: Aucun dossier ni fichier de ce nom\n",liste_argument[i]);
+								char *error= malloc(1024);
+								sprintf(error,"ls %s: Aucun dossier ni fichier de ce nom\n",liste_argument[i]);
+								write(STDERR_FILENO,error,strlen(error));
+								free(error);
 							}
 						}
 						continue;
@@ -487,7 +491,10 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 						}
 						if (list[j]==NULL)
 						{
-							printf("cd: Aucun dossier %s dans %s\n",liste_argument[1],tar);
+							char *error= malloc(1024);
+							sprintf(error,"cd: Aucun dossier %s dans %s\n",liste_argument[1],tar);
+							write(STDERR_FILENO,error,strlen(error));
+							free(error);
 						}
 
 					}
@@ -515,7 +522,6 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		//Sinon, on change directement avec chdir
 		else
 		{
-			strcpy(nv_repr_courant,simplifie_chemin(nv_repr_courant));
 			if (nv_repr_courant[strlen(nv_repr_courant) - 1] != '/')
 			{
 				int i = strlen(nv_repr_courant);
@@ -531,6 +537,7 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			}
 			else
 			{
+				strcpy(nv_repr_courant,simplifie_chemin(nv_repr_courant));
 				strcpy(tsh->repertoire_courant,nv_repr_courant);
 				tsh->tarball = 0;
 			}
@@ -540,9 +547,9 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	else
 	{
 		if (nb_arg_cmd > 2)
-			printf("cd : Trop d'arguments\n");
+			write(STDERR_FILENO,"cd : Trop d'arguments\n",strlen("cd : Trop d'arguments\n"));
 		else
-			printf("cd : Pas assez d'arguments\n");
+			write(STDERR_FILENO,"cd : Pas assez d'arguments\n",strlen("cd : Pas assez d'arguments\n"));
 	}
 	return 0;
 }
@@ -596,7 +603,10 @@ int rm(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				}
 				else
 				{
-					printf("rm %s: Veuillez utiliser l'option -r pour supprimer les .tar\n",liste_argument[i]);
+					char *error= malloc(1024);
+					sprintf(error,"rm %s: Veuillez utiliser l'option -r pour supprimer les .tar\n",liste_argument[i]);
+					write(STDERR_FILENO,error,strlen(error));
+					free(error);
 				}
 			}
 			//Suppression dans un .tar
@@ -656,18 +666,28 @@ int mkdir_tar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		strcpy(fichier,tsh->repertoire_courant);
 		strcat(fichier,"/");
 		strcat(fichier,liste_argument[i]);
-		strcpy(fichier,simplifie_chemin(fichier));
+		char * file = simplifie_chemin(fichier);
+		file[strlen(fichier)] = '\0';
 		//Contexte tar
 		if (contexteTarball(fichier))
 		{
-			int index = recherche_fich_tar(fichier);
-			if (index == strlen(fichier))
+			int index = recherche_fich_tar(file);
+			if (index == strlen(file))
 			{
 				printf("Création de .tar %s\n",liste_argument[i]);
 			}
 			else
 			{
-				printf("Création de dossier dans .tar\n");
+				char *tar = malloc(strlen(file));
+				strncpy(tar,file,index);
+				tar[index-1] = '\0';
+				char *repr_to_create = &file[index];
+				repr_to_create[strlen(file)-index+1] = '\0';
+				if (repr_to_create[strlen(repr_to_create)-1] != '/')
+				{
+					printf("Merde");
+				}
+				creation_repertoire_tar(tar,repr_to_create);
 			}
 		}
 		//En dehors d'un tar
@@ -778,6 +798,7 @@ int cat(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			//Fichier .tar
 			if (strcmp(&simple[strlen(simple)-5],".tar/")==0)
 			{
+
 				printf("cat %s : Pas de cat sur un .tar\n",simple);
 				continue;
 			}
