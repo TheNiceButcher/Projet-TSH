@@ -58,10 +58,12 @@ char *decoup_nom_fich(char *chemin,int *index)
 	int lg_mot = 0;
 	while (chemin[i] != '/')
 	{
+		if (chemin[i] == '\0' || chemin[i] < 33)
+			break;
+		/*if (chemin[i] == '\0')
+			break;*/
 		lg_mot++;
 		i++;
-		if (chemin[i] == '\0')
-			break;
 	}
 	i++;
 	*index = i;
@@ -103,6 +105,11 @@ char *simplifie_chemin(char *chemin)
 				}
 				i++;
 				name = decoup_nom_fich(chemin,&index);
+				if (name == NULL)
+				{
+					nvx_chemin[i] = '\0';
+					break;
+				}
 				continue;
 			}
 			//Dossier autre
@@ -115,7 +122,20 @@ char *simplifie_chemin(char *chemin)
 			}
 		}
 		free(name);
-		nvx_chemin[i] = '\0';
+		nvx_chemin[index] = '\0';
+		if(nvx_chemin[i-1]=='/')
+		{
+			if (i >= 1)
+			{
+				i--;
+				while(nvx_chemin[i] != '/')
+				{
+					i--;
+				}
+				i += 2;
+				nvx_chemin[i] = '\0';
+			}
+		}
 		return nvx_chemin;
 	}
 }

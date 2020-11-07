@@ -2,7 +2,7 @@
 #define COMMANDE_H
 #include "shell.h"
 int estTarball(char *nom_fichier);
-int contexteTarball(char const *chemin);
+int contexteTarball(char*chemin);
 int estCommandeTar(char *mot_commande);
 int recherche_fich_tar(char *chemin);
 char **recherche_option(char **liste_argument,int nb_arg_cmd);

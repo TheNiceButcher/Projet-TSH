@@ -30,35 +30,24 @@ int estTarball(char *nom_fichier)
 Verifie si le chemin en argument contient un tarball
 Renvoie 1 si on est dans le contexte d'un Tarball, 0 sinon
 */
-int contexteTarball(char const *chemin)
+int contexteTarball(char*chemin)
 {
 	if (chemin == NULL)
 		return 0;
 	else
 	{
 		int i = 0;
-		while (chemin[i] != '\0')
+		char *fichier = decoup_nom_fich(chemin,&i);
+		while (fichier != NULL)
 		{
-			int debut_mot = i;
-			int lg_mot = 0;
-			while (chemin[i] != '/')
-			{
-				lg_mot++;
-				i++;
-				if (chemin[i] == '\0')
-					break;
-			}
-			i++;
-			char *fichier = malloc(lg_mot + 1);
-			strncpy(fichier,&chemin[debut_mot],lg_mot);
-			fichier[strlen(fichier)] = '\0';
 			if (estTarball(fichier))
 			{
 				free(fichier);
 				return 1;
 			}
-			fichier = NULL;
+			fichier = decoup_nom_fich(chemin,&i);
 		}
+		free(fichier);
 		return 0;
 	}
 }
@@ -260,6 +249,7 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			strcat(fichier,liste_argument[i]);
 			char *simplified_path = malloc(1024);
 			strcpy(simplified_path,simplifie_chemin(fichier));
+			//printf("%s\n",simplified_path);
 			//Fichier dans un tarball
 			if (contexteTarball(simplified_path))
 			{
@@ -285,23 +275,23 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 						}
 						int index = 0;
 						int k = 0;
-						int d = 0;
 						while (list[k]!=NULL)
 						{
+							int d = 0;
 							for(;d < index;d++)
 							{
 								if (strncmp(to_print[d],list[k],strlen(to_print[d])) == 0)
 								{
-									printf("%s\n",to_print[d]);
+									//printf("%s\n",to_print[d]);
 									break;
 								}
 							}
 							if (d == index)
 							{
 								printf("%s\n",list[k]);
-								to_print[d] = malloc(strlen(list[k]));
-								strcpy(to_print[d],list[k]);
-								d++;
+								to_print[index] = malloc(strlen(list[k]));
+								strcpy(to_print[index],list[k]);
+								index++;
 							}
 							k++;
 						}
@@ -311,6 +301,7 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 						}
 						free(to_print);
 					}
+					free(simplified_path);
 					continue;
 				}
 				//ls sur un fichier dans un fichier .tar
@@ -589,7 +580,7 @@ int rm(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			//Si on doit supprimer un fichier  .tar
 			if (index == strlen(simple2))
 			{
-				//Considerant les .tar comme des dossiers, on attende l'option pour le supprimer
+				//Considerant les .tar comme des dossiers, on attend l'option pour le supprimer
 				if (option)
 				{
 					simple2[strlen(simple2)-1] = '\0';
@@ -666,8 +657,9 @@ int mkdir_tar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		strcpy(fichier,tsh->repertoire_courant);
 		strcat(fichier,"/");
 		strcat(fichier,liste_argument[i]);
+		fichier[strlen(liste_argument[i])+strlen(tsh->repertoire_courant)] = '\0';
 		char * file = simplifie_chemin(fichier);
-		file[strlen(fichier)] = '\0';
+		file[strlen(file)] = '\0';
 		//Contexte tar
 		if (contexteTarball(fichier))
 		{
@@ -819,7 +811,10 @@ int cat(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				}
 				else
 				{
-					file_to_find[strlen(file_to_find)-1] = '\0';
+					if (liste_argument[i][strlen(liste_argument[i])-1]=='/')
+						file_to_find[strlen(file_to_find)] = '\0';
+					else
+						file_to_find[strlen(file_to_find)-1] = '\0';
 					affiche_fichier_tar(tar,file_to_find);
 				}
 				continue;

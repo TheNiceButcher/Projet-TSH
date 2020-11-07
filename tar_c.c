@@ -71,6 +71,7 @@ char **list_fich(char *tar)
 		//Sinon, on verifie pourquoi ce n'est pas le cas
 		else
 		{
+			break;
 			//Entete de fin de fichier => fin de parcours
 			/*if(entete.name[0] == '\0')
 			{
@@ -111,6 +112,14 @@ int affiche_fichier_tar(char *tar,char*file)
 			//On affiche le fichier
 			if(strcmp(file,entete.name)==0)
 			{
+				if(entete.typeflag == '5')
+				{
+					char *error = malloc(strlen(file)+strlen("cat  : est un dossier\n")+2);
+					sprintf(error,"cat %s : est un dossier\n", file);
+					write(STDERR_FILENO,error,strlen(error));
+					free(error);
+					return 0;
+				}
 				char buffer[512];
 				unsigned long taille;
 				sscanf(entete.size,"%lo",&taille);
@@ -123,6 +132,15 @@ int affiche_fichier_tar(char *tar,char*file)
 				}
 				return 1;
 			}
+			//Cas ou l'on a tape un nom de dossier sans le /
+			if((strncmp(file,entete.name,strlen(entete.name)-1)==0) && (entete.typeflag=='5'))
+			{
+				char *error = malloc(strlen(file)+strlen("cat  : est un dossier\n")+2);
+				sprintf(error,"cat %s : est un dossier\n", file);
+				write(STDERR_FILENO,error,strlen(error));
+				free(error);
+				return 0;
+			}
 			unsigned long taille;
 			sscanf(entete.size,"%lo",&taille);
 			lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
@@ -131,7 +149,10 @@ int affiche_fichier_tar(char *tar,char*file)
 		}
 
 	}
-	printf("Fichier %s introuvable\n",file);
+	char *error = malloc(strlen(file)+strlen("cat  : est un dossier\n")+2);
+	sprintf(error,"cat : Fichier %s introuvable\n",file);
+	write(STDERR_FILENO,error,strlen(error));
+	free(error);
 	return 0;
 }
 /*
@@ -264,13 +285,14 @@ int creation_repertoire_tar(char*tar,char*repr)
 	{
 		if (strcmp(fichiers_tar[index],repr)==0)
 		{
-			char error[strlen(repr)+strlen(tar)+strlen("mkdir  impossible : deja present dans \n") + 1];
+			char error[strlen(repr)+strlen(tar)+strlen("mkdir  impossible : deja present dans \n") + 6];
 			sprintf(error,"mkdir %s impossible : deja present dans %s\n",repr,tar);
-			perror(error);
+			write(STDERR_FILENO,error,strlen(error));
 			return 1;
 		}
 		index ++;
 	}
+	free(fichiers_tar);
 	int fd = open(tar,O_RDONLY);
 	if(fd == -1)
 	{
@@ -281,7 +303,7 @@ int creation_repertoire_tar(char*tar,char*repr)
 		return 0;
 	}
 	struct posix_header hd,hd2;
-	memcpy(hd.name,repr,strlen(repr));
+	sprintf(hd.name,"%s",repr);
 	sprintf(hd.mode,"0000777");
     hd.typeflag = '5';
 	sprintf(hd.mtime,"%011lo",time(NULL));
@@ -309,8 +331,9 @@ int creation_repertoire_tar(char*tar,char*repr)
 			break;
 		}
 	}
+	close(fd);
 	fd = open(tar,O_WRONLY);
-	lseek(fd,nb_blocs*512,SEEK_SET);
+	lseek(fd,nb_blocs*512,SEEK_CUR);
 	write(fd,&hd,512);
 	close(fd);
 	return 0;
