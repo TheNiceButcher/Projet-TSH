@@ -65,9 +65,10 @@ char *decoup_nom_fich(char *chemin,int *index)
 		lg_mot++;
 		i++;
 	}
-	i++;
+	if (chemin[i] != '\0')
+		i++;
 	*index = i;
-	char *fichier = malloc(lg_mot + 1);
+	char *fichier = malloc(lg_mot);
 	strncpy(fichier,&chemin[debut_mot],lg_mot);
 	fichier[lg_mot] = '\0';
 	return fichier;

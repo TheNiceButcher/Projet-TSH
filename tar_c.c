@@ -274,6 +274,7 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 }
 int creation_repertoire_tar(char*tar,char*repr)
 {
+	printf("%s\n",repr);
 	char **fichiers_tar = list_fich(tar);
 	if (fichiers_tar == NULL)
 	{
@@ -296,13 +297,14 @@ int creation_repertoire_tar(char*tar,char*repr)
 	int fd = open(tar,O_RDONLY);
 	if(fd == -1)
 	{
-		char *error = malloc(1024);
+		char *error = malloc(strlen(tar)+strlen("Erreur creation_repertoire_tar ")+2);
 		sprintf(error,"Erreur creation_repertoire_tar %s",tar);
 		perror(error);
 		free(error);
 		return 0;
 	}
 	struct posix_header hd,hd2;
+	memset(&hd,0,sizeof(struct posix_header));
 	sprintf(hd.name,"%s",repr);
 	sprintf(hd.mode,"0000777");
     hd.typeflag = '5';

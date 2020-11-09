@@ -247,9 +247,13 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			strcpy(fichier,tsh->repertoire_courant);
 			strcat(fichier,"/");
 			strcat(fichier,liste_argument[i]);
-			char *simplified_path = malloc(1024);
-			strcpy(simplified_path,simplifie_chemin(fichier));
-			//printf("%s\n",simplified_path);
+			int dossier = (liste_argument[i][strlen(liste_argument[i])-1]=='/');
+			if (dossier==0)
+			{
+				strcat(fichier,"/");
+			}
+			char *simplified_path = malloc(strlen(fichier));
+			simplified_path = simplifie_chemin(fichier);
 			//Fichier dans un tarball
 			if (contexteTarball(simplified_path))
 			{
@@ -258,8 +262,9 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				{
 					simplified_path[(strlen(simplified_path))-1] = '\0';
 				}
+				int s = recherche_fich_tar(simplified_path);
 				//ls sur un Fichier .tar
-				if (strcmp(&simplified_path[strlen(simplified_path)-4],".tar")==0)
+				if (s==strlen(simplified_path))
 				{
 					char **list = list_fich(simplified_path);
 					if (list == NULL)
@@ -288,10 +293,15 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 							}
 							if (d == index)
 							{
-								printf("%s\n",list[k]);
-								to_print[index] = malloc(strlen(list[k]));
-								strcpy(to_print[index],list[k]);
+								int fin_fich = 0;
+								char * mot = decoup_nom_fich(list[k],&fin_fich);
+								if (list[k][strlen(list[k])-1]=='/')
+									strcat(mot,"/");
+								printf("%s\n",mot);
+								to_print[index] = malloc(strlen(mot));
+								strcpy(to_print[index],mot);
 								index++;
+								free(mot);
 							}
 							k++;
 						}
@@ -308,28 +318,17 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				else
 				{
 					//Recherche fichier .tar contenant le fichier
-					char *tar = malloc(256);
-					int index = 0;
-					tar = decoup_nom_fich(simplified_path,&index);
-					while (tar != NULL)
-					{
-						if (strcmp(&tar[strlen(tar)-4],".tar")==0)
-						{
-							break;
-						}
-						tar = decoup_nom_fich(simplified_path,&index);
-					}
+					char *tar = malloc(strlen(simplified_path));
+					int index = s;
+					strncpy(tar,simplified_path,index);
 					if (tar == NULL)
 					 	printf("impossible\n");
 					else
 					{
-						char *new_tar = malloc(1024);
-						strncpy(new_tar,simplified_path,index);
-						new_tar[strlen(new_tar)-1] = '\0';
-						char **list = list_fich(new_tar);
+						tar[index - 1] = '\0';
+						char **list = list_fich(tar);
 						char *file_to_find = malloc(1024);
-						strcpy(file_to_find,&simplified_path[index]);
-
+						strncpy(file_to_find,&simplified_path[index],strlen(simplified_path)-index + 1);
 						if (list == NULL)
 						{
 							printf("Erreur\n");
@@ -347,22 +346,33 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 							int i_deja_trouve = 0;
 							while (list[k]!=NULL)
 							{
-								if (strncmp(list[k],file_to_find,strlen(simplified_path) - index - 1)==0)
+								if (strncmp(list[k],file_to_find,strlen(file_to_find))==0)
 								{
+									//printf("Bonjour %s\n",list[k]);
 									if (list[k][strlen(simplified_path) - index] == '\0'||list[k][strlen(simplified_path) - index] == '/')
 									{
-										int jpp = strlen(simplified_path) - index + 1;
+										int jpp = strlen(file_to_find) + 1;
 										char *fich_to_print = decoup_nom_fich(list[k],&jpp);
 										int d = 0;
 										for (; d < i_deja_trouve;d++)
 										{
+											if (fich_to_print==NULL) continue;
 											if (strcmp(fich_to_print,deja_affiche[d])==0)
 												break;
 										}
-										if (d == i_deja_trouve && fich_to_print != NULL)
+										if (d == i_deja_trouve)
 										{
-											printf("%s",fich_to_print);
+											//On n'affiche pas le nom du dossier sur lequel on appelle ls
+											if (strncmp(list[k],file_to_find,strlen(file_to_find))==0 && list[k][strlen(list[k])-1] == '/')
+											{
+												k++;
+												continue;
+											}
+											//ls sur un fichier != repertoire
+											if (fich_to_print == NULL)
+												fich_to_print = list[k];
 											//Affichage d'un '/' en fin de ligne pour les repertoires
+											printf("%s",fich_to_print);
 											if (list[k][jpp-1] == '/')
 												printf("/\n");
 											else
@@ -374,7 +384,7 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 											i_deja_trouve++;
 											trouve++;
 										}
-										fich_to_print = NULL;
+										free(fich_to_print);
 									}
 								}
 								k++;
@@ -385,14 +395,19 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 							}
 							if (!trouve)
 							{
-								char *error= malloc(1024);
+								char *error= malloc(strlen("ls : Aucun dossier ni fichier de ce nom\n") + strlen(liste_argument[i]) + 2);
 								sprintf(error,"ls %s: Aucun dossier ni fichier de ce nom\n",liste_argument[i]);
 								write(STDERR_FILENO,error,strlen(error));
 								free(error);
 							}
+							free(tar);
+							for(int h = 0; h < k;h++)
+								free(list[h]);
+							free(list);
 						}
 						continue;
 					}
+
 				}
 
 			}
@@ -402,7 +417,8 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				int fils = fork();
 				if (fils == -1)
 				{
-
+					perror("fork ls");
+					continue;
 				}
 				if(fils==0)
 				{
@@ -412,6 +428,7 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				wait(NULL);
 			}
 			free(simplified_path);
+			free(fichier);
 		}
 	}
 	return 0;
@@ -435,26 +452,13 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		}
 		if (nv_repr_courant[strlen(nv_repr_courant)-1] != '/')
 			strcat(nv_repr_courant,"/");
-		//Si on est dans un tar a la fin
-		if (contexteTarball(simplifie_chemin(nv_repr_courant)))
+		//Si on passe par un tarball
+		if (contexteTarball(nv_repr_courant))
 		{
 			strcpy(nv_repr_courant,simplifie_chemin(nv_repr_courant));
-			//On parcourt le chemin jusqu'a trouver le fichier tar
-			int i = 0;
-			char *file = decoup_nom_fich(nv_repr_courant,&i);
-			while (file != NULL)
-			{
-				if (strcmp(&file[strlen(file)-4],".tar")==0)
-					break;
-				file = decoup_nom_fich(nv_repr_courant,&i);
-			}
-			free(file);
-			//Si on est alle jusqu'au bout du nouveau repertoire, on sera a la "racine" d'un tar
+			int i = recherche_fich_tar(nv_repr_courant);
 			char *tar = malloc(strlen(nv_repr_courant));
-			for(int f = 0; f < i;f++)
-			{
-				tar[f] = nv_repr_courant[f];
-			}
+			strncpy(tar,nv_repr_courant,i);
 			tar[i-1] = '\0';
 			struct stat test;
 			if (stat(tar,&test) != -1)
@@ -476,17 +480,14 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 							{
 								strcpy(tsh->repertoire_courant,nv_repr_courant);
 								tsh->tarball = 1;
-								break;
+								return 1;
 							}
 							j++;
 						}
-						if (list[j]==NULL)
-						{
-							char *error= malloc(1024);
-							sprintf(error,"cd: Aucun dossier %s dans %s\n",liste_argument[1],tar);
-							write(STDERR_FILENO,error,strlen(error));
-							free(error);
-						}
+						char *error= malloc(strlen("cd: Aucun dossier dans \n")+strlen(tar)+strlen(tsh->repertoire_courant)+3);
+						sprintf(error,"cd: Aucun dossier %s dans %s\n",liste_argument[1],tar);
+						write(STDERR_FILENO,error,strlen(error));
+						free(error);
 
 					}
 					else
@@ -494,16 +495,17 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 						printf("Erreur\n");
 					}
 				}
-				//Le repertoire se situe a la racine du tar
+				//Le repertoire se situe a la racine du tar ou dans un dossier au dessus
 				else
 				{
 					strcpy(tsh->repertoire_courant,nv_repr_courant);
-					tsh->tarball = 1;
+					//On verifie si on est toujours dans un tarball
+					tsh->tarball = contexteTarball(nv_repr_courant);
 				}
 			}
 			else
 			{
-				char * error = malloc(1024);
+				char * error = malloc(strlen("cd ")+strlen(tar)+2);
 				sprintf(error,"cd %s",tar);
 				perror(error);
 				free(error);
@@ -513,6 +515,7 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		//Sinon, on change directement avec chdir
 		else
 		{
+
 			if (nv_repr_courant[strlen(nv_repr_courant) - 1] != '/')
 			{
 				int i = strlen(nv_repr_courant);
@@ -524,6 +527,7 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				strcpy(nv_repr_courant,"/");
 			if (chdir(nv_repr_courant)==-1)
 			{
+
 				perror("cd impossible");
 			}
 			else
@@ -551,7 +555,25 @@ int pwd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 }
 int cp(char **liste_argument,int nb_arg_cmd,shell *tsh)
 {
-	printf("cp en construction\n");
+	int option = (recherche_option(liste_argument,nb_arg_cmd));
+
+	for(int i = 0; i < nb_arg_cmd - 1;i++)
+	{
+		if (liste_argument[i][0] == '-')
+			continue;
+		char * simple = malloc(strlen(liste_argument[i]) + strlen(tsh->repertoire_courant)+3);
+		strcpy(simple,tsh->repertoire_courant);
+		strcat(simple,"/");
+		strcat(simple,liste_argument[i]);
+		int dossier = 0;
+		if (simple[strlen(simple)-1] != '/')
+		{
+			strcat(simple,"/");
+		}
+		else
+			dossier = 1;
+
+	}
 	return 0;
 }
 int rm(char **liste_argument,int nb_arg_cmd,shell *tsh)
@@ -644,8 +666,8 @@ int rm(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					wait(NULL);
 			}
 		}
-		simple = NULL;
-		simple2 = NULL;
+		free(simple);
+		free(simple2);
 	}
 	return 0;
 }
@@ -657,7 +679,10 @@ int mkdir_tar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		strcpy(fichier,tsh->repertoire_courant);
 		strcat(fichier,"/");
 		strcat(fichier,liste_argument[i]);
-		fichier[strlen(liste_argument[i])+strlen(tsh->repertoire_courant)] = '\0';
+		if (fichier[strlen(fichier)-1]!='/')
+		{
+			strcat(fichier,"/");
+		}
 		char * file = simplifie_chemin(fichier);
 		file[strlen(file)] = '\0';
 		//Contexte tar
@@ -670,16 +695,23 @@ int mkdir_tar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			}
 			else
 			{
+				file[strlen(file)-1] = '\0';
+				printf("%s\n",file);
 				char *tar = malloc(strlen(file));
 				strncpy(tar,file,index);
 				tar[index-1] = '\0';
-				char *repr_to_create = &file[index];
-				repr_to_create[strlen(file)-index+1] = '\0';
+				char *repr_to_create = malloc (strlen(file)-index+3);
+				strncpy(repr_to_create,&file[index],strlen(file)-index+1);
+				repr_to_create[strlen(repr_to_create)] = '\0';
 				if (repr_to_create[strlen(repr_to_create)-1] != '/')
 				{
-					printf("Merde");
+					strcat(repr_to_create,"/");
 				}
 				creation_repertoire_tar(tar,repr_to_create);
+				free(file);
+				free(fichier);
+				free(tar);
+				free(repr_to_create);
 			}
 		}
 		//En dehors d'un tar
