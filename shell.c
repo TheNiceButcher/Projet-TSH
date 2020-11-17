@@ -213,9 +213,9 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
                  cmds++;
               }
             }
-            cmds++;//nombre de commande entre  pipe si cmds est different de 1
+            cmds++;//sauvgarde le nombre de commande entre  pipe
 
-		    //s'il n y a pas de pipe
+		    //s'il notre comamande n'a pas de pipe
 		    if(cmds==1)
 			{
 				//On verifie que la commande peut s'effectuer sur les tar ou non
@@ -242,85 +242,81 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					wait(NULL);
 				}
 			}
-			//s'il y a des pipe
+			
+			//si notre commande contient des pipe
 			else
-			{////////////////
+			{
 
 			  int i = 0;
-int cmds=0;
-int fd[2];
-int fd2[2];
+              int cmds=0;
+              int fd[2];
+              int fd2[2];
 
-//compter le nombre de commande
-for(int i = 0; i < nb_arg_cmd; i++){
-          if (strcmp(liste_argument[i], "|") == 0){
-             cmds++;
-          }
-      }
-      cmds++;
+              //compter le nombre de commande entre pipe
+              for(int i = 0; i < nb_arg_cmd; i++){
+                 if (strcmp(liste_argument[i], "|") == 0){
+                   cmds++;
+                 }
+              }
+              cmds++;
 
 
-       int j = 0;
-       char ** commandes = malloc(20*sizeof(char*));
+             int j = 0;
+             char ** commandes = malloc(20*sizeof(char*));
 
-       int fin= 0;
-       pid_t pid;
+             int fin= 0;
+             pid_t pid;
 
-      while(liste_argument[j] != NULL && fin!= 1){
+             while(liste_argument[j] != NULL && fin!= 1){
 
-          int k = 0;
-          while (strcmp(liste_argument[j],"|") != 0){
-
+             int k = 0;
+             while (strcmp(liste_argument[j],"|") != 0){
               commandes[k] = liste_argument[j];
               j++;
-              if (liste_argument[j] == NULL){
-
-                  //la variable fin va nous indiquer si on a lis tout les commandes
-                  fin = 1;
-                  k++;
-                  break;
+               
+                  if (liste_argument[j] == NULL){
+                     //la variable fin va nous indiquer si on a lis tout les commandes
+                     fin = 1;
+                     k++;
+                     break;
+                  }
+                k++;
               }
-              k++;
-          }
 
-         commandes[k] = NULL;
-          j++;
+            commandes[k] = NULL;
+            j++;
 
-if (i % 2 != 0){// si i est impaire
+           if (i % 2 != 0){// si i est impaire
 
            pipe(fd);
 
-       }
+            }
 
-else{
-           pipe(fd2);
-       }
+          else{   pipe(fd2);  }
 
-pid=fork();
+          pid=fork();
 
 
 
- if(pid==0){
-           //premier commande
-           if (i == 0){
+           if(pid==0){
+           
+           if (i == 0){ //si on est dans la premier commande
 
                dup2(fd2[1], STDOUT_FILENO);
            }
-
-
-           // si on nest dans la dernier commande
-           else if (i == cmds - 1){
+           
+           
+           else if (i == cmds - 1){ // si on nest dans la dernier commande
                if (cmds % 2 != 0){
-
                    dup2(fd[0],STDIN_FILENO);
                }
-                 else{
-
+               
+                  else{
                    dup2(fd2[0],STDIN_FILENO);
-               }
-
-
+                   }
            }
+           
+           
           //si on est dans une commande qui est au millieu on doit utiliser 2 pipe un pour recuper
           //sa sortie et lautre pour ecrire dans son entrer
               else{
@@ -333,30 +329,32 @@ pid=fork();
                }
            }
 
-           execvp(commandes[0],commandes);
+             execvp(commandes[0],commandes);
        }
-if(i==0){
-close(fd2[1]);
-}
-else if(i==cmds -1){
-if(cmds % 2 !=0){
-close(fd[0]);
-}
-else{close(fd2[0]);}
-}
-else{if (i%2 != 0){
-close(fd2[0]);
-close(fd[1]);
-}else{
-close(fd[0]);
-close(fd2[1]);
-}
+     if(i==0){
+     close(fd2[1]);
+     }
+     else if(i==cmds -1){
+         if(cmds % 2 !=0){ close(fd[0]); }
+         
+          else{ close(fd2[0]); }
+          
+            }
+     else{
+         if (i%2 != 0){
+          close(fd2[0]);
+          close(fd[1]);
+         }
+        else{
+         close(fd[0]);
+         close(fd2[1]);
+        }
 
-}
+       }
 
-waitpid(pid,NULL,0);
-i++;
-}
+     waitpid(pid,NULL,0);
+   i++;
+   }
 
 
 			}
