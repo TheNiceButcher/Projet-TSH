@@ -272,9 +272,22 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 	//unlink(".supprimer_fichier_tar");
 	return 0;
 }
+/*
+Crée un repertoire au nom de repr dans le fichier tar en argument
+REnvoie une erreur si le dossier est deja present dans le fichier tar
+*/
 int creation_repertoire_tar(char*tar,char*repr)
 {
-	printf("%s\n",repr);
+	//On verifie d'abord si on veut creer un repertoire a la racine du tar ou dans l'un des ses sous repertoire
+	int t = 0;
+	int nb_ss_dossier = 0;
+	while(repr[t]!='\0')
+	{
+		if (repr[t]=='/')
+			nb_ss_dossier++;
+		t++;
+
+	}
 	char **fichiers_tar = list_fich(tar);
 	if (fichiers_tar == NULL)
 	{
@@ -282,18 +295,35 @@ int creation_repertoire_tar(char*tar,char*repr)
 		return 1;
 	}
 	int index = 0;
+	int trouve = 0;
 	while (fichiers_tar[index]!=NULL)
 	{
-		if (strcmp(fichiers_tar[index],repr)==0)
+		//Recherche dossier dans le fichier tar
+		if (strncmp(fichiers_tar[index],repr,strlen(fichiers_tar[index]))==0)
 		{
+			if (nb_ss_dossier > 1)
+			{
+				trouve++;
+				index++;
+				continue;
+			}
 			char error[strlen(repr)+strlen(tar)+strlen("mkdir  impossible : deja present dans \n") + 6];
 			sprintf(error,"mkdir %s impossible : deja present dans %s\n",repr,tar);
 			write(STDERR_FILENO,error,strlen(error));
 			return 1;
 		}
-		index ++;
+		index++;
 	}
+
 	free(fichiers_tar);
+	//Si le repertoire a creer est dans un sous repertoire de la racine mais que ce sous repertoire n'existe pas,on renvoie une erreur
+	if (nb_ss_dossier > 1 && trouve == 0)
+	{
+		char error[strlen(repr)+strlen(tar)+strlen("mkdir  impossible :  N'est pas un dossier\n") + 6];
+		sprintf(error,"mkdir %s impossible : N'est pas un dossier\n",repr);
+		write(STDERR_FILENO,error,strlen(error));
+		return 1;
+	}
 	int fd = open(tar,O_RDONLY);
 	if(fd == -1)
 	{
@@ -303,6 +333,7 @@ int creation_repertoire_tar(char*tar,char*repr)
 		free(error);
 		return 0;
 	}
+	//Création entete du dossier à creer
 	struct posix_header hd,hd2;
 	memset(&hd,0,sizeof(struct posix_header));
 	sprintf(hd.name,"%s",repr);
@@ -334,6 +365,7 @@ int creation_repertoire_tar(char*tar,char*repr)
 		}
 	}
 	close(fd);
+	//Ajout du repertoire a la fin du tarball
 	fd = open(tar,O_WRONLY);
 	lseek(fd,nb_blocs*512,SEEK_CUR);
 	write(fd,&hd,512);

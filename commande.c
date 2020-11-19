@@ -101,7 +101,7 @@ dans le chemin
 */
 int recherche_fich_tar(char *chemin)
 {
-	char *tar = malloc(256);
+	char *tar = malloc(strlen(chemin)+1);
 	int index = 0;
 	tar = decoup_nom_fich(chemin,&index);
 	while (tar != NULL)
@@ -351,8 +351,10 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 									//printf("Bonjour %s\n",list[k]);
 									if (list[k][strlen(simplified_path) - index] == '\0'||list[k][strlen(simplified_path) - index] == '/')
 									{
+										//printf("Bonjour %s\n",list[k]);
 										int jpp = strlen(file_to_find) + 1;
 										char *fich_to_print = decoup_nom_fich(list[k],&jpp);
+										//fich_to_print != NULL && printf("%s\n",fich_to_print);
 										int d = 0;
 										for (; d < i_deja_trouve;d++)
 										{
@@ -365,8 +367,12 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 											//On n'affiche pas le nom du dossier sur lequel on appelle ls
 											if (strncmp(list[k],file_to_find,strlen(file_to_find))==0 && list[k][strlen(list[k])-1] == '/')
 											{
-												k++;
-												continue;
+												//Dossier
+												if(fich_to_print == NULL)
+												{
+													k++;
+													continue;
+												}
 											}
 											//ls sur un fichier != repertoire
 											if (fich_to_print == NULL)
@@ -527,8 +533,9 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				strcpy(nv_repr_courant,"/");
 			if (chdir(nv_repr_courant)==-1)
 			{
-
-				perror("cd impossible");
+				char error[strlen(liste_argument[1])+strlen("cd impossible") + 3];
+				sprintf(error,"cd %s impossible",liste_argument[1]);
+				perror(error);
 			}
 			else
 			{
@@ -556,8 +563,43 @@ int pwd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 int cp(char **liste_argument,int nb_arg_cmd,shell *tsh)
 {
 	int option = (recherche_option(liste_argument,nb_arg_cmd));
+	if (nb_arg_cmd <= 2)
+	{
+		write(STDERR_FILENO,"cp : Au moins 2 arguments\n",strlen("cp : Au moins 2 arguments\n"));
+		return 1;
+	}
+	//Verification destination cp
+	char *destination = malloc(strlen(liste_argument[nb_arg_cmd-1])+strlen(tsh->repertoire_courant)+3);
+	strcpy(destination,tsh->repertoire_courant);
+	strcat(destination,"/");
+	strcat(destination,liste_argument[nb_arg_cmd-1]);
+	int src_in_tar = 0;
+	if (nb_arg_cmd != 3)
+	{
 
-	for(int i = 0; i < nb_arg_cmd - 1;i++)
+		if (contexteTarball(destination))
+		{
+			printf("A faire\n");
+		}
+		else
+		{
+			struct stat st;
+			if (stat(destination,&st)!=-1)
+			{
+				printf("A faire\n");
+			}
+			else
+			{
+				char * error = malloc(strlen(liste_argument[nb_arg_cmd-1])+strlen("cp: la cible n'est pas un dossier\n")+3);
+				sprintf(error,"cp: la cible %s n'est pas un dossier\n",liste_argument[nb_arg_cmd-1]);
+				write(STDERR_FILENO,error,strlen(error));
+				free(destination);
+				free(error);
+				return 1;
+			}
+		}
+	}
+	for(int i = 1; i < nb_arg_cmd - 1;i++)
 	{
 		if (liste_argument[i][0] == '-')
 			continue;
@@ -573,6 +615,35 @@ int cp(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		else
 			dossier = 1;
 
+		if(contexteTarball(simple))
+		{
+			printf("Coucou\n");
+		}
+		else
+		{
+			if (dossier==0)
+			{
+				simple[strlen(simple)-1] = '\0';
+			}
+			struct stat st;
+			if (stat(simple,&st)!=-1)
+			{
+				if((st.st_mode & S_IFMT) == S_IFDIR)
+				{
+					printf("Dossier %s\n",simple);
+				}
+				else
+					printf("FIchier\n");
+			}
+			else
+			{
+				char * error = malloc(strlen("cp ")+strlen(simple)+2);
+				sprintf(error,"cp %s",simple);
+				perror(error);
+				free(error);
+			}
+		}
+		free(simple);
 	}
 	return 0;
 }
@@ -633,6 +704,8 @@ int rm(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					file_to_rm[strlen(file_to_rm)-1] = '\0';
 				tar[strlen(tar)-1] = '\0';
 				supprimer_fichier_tar(tar,file_to_rm,option);
+				free(tar);
+				free(file_to_rm);
 			}
 		}
 		else

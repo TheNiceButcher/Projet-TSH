@@ -47,7 +47,8 @@ char *decoup_mot(char *commande,int *index)
 	return mot;
 }
 /*
-Renvoie le nom du dossier enfant
+Renvoie le nom du dossier enfant du chemin à l'index dont l'adresse est donnee en argument
+Si on est à la fin du chemin ou que le chemin est NULL, on renvoie NULL
 */
 char *decoup_nom_fich(char *chemin,int *index)
 {
@@ -60,8 +61,6 @@ char *decoup_nom_fich(char *chemin,int *index)
 	{
 		if (chemin[i] == '\0' || chemin[i] < 33)
 			break;
-		/*if (chemin[i] == '\0')
-			break;*/
 		lg_mot++;
 		i++;
 	}
@@ -182,6 +181,7 @@ char **recuperer_commande(int * taille_commande)
 	{
 		liste_argument[j] = NULL;
 	}
+	free(commande);
 	return liste_argument;
 }
 /*
