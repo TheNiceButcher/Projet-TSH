@@ -943,9 +943,25 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
                        	        stat(fd_src, buf);
                        	        
                                 memset(&entete,0,sizeof(struct posix_header));
+                                
                               	sprintf(entete.name,"%s",src); 
                              	sprintf(entete.mode,buf_src.st_mode);
-                                entete.typeflag = mystat.st_mode & ~S_IFMT;
+
+                                //entete.typeflag = mystat.st_mode & ~S_IFMT;
+                                
+                                
+                               switch (buf_src.st_mode & S_IFMT) {
+                                case S_IFBLK:  entete.typeflag=S_IFBLK    ;   break;
+                                case S_IFCHR:  entete.typeflag=S_IFCHR    ;   break;
+                                case S_IFDIR:  entete.typeflag=S_IFDIR    ;   break;
+                                case S_IFIFO:  entete.typeflag=S_IFIFO    ;   break;
+                                case S_IFLNK:  entete.typeflag=S_IFLNK    ;   break;
+                                case S_IFREG:  entete.typeflag=S_IFREG    ;   break;
+                                case S_IFSOCK: entete.typeflag=S_IFSOCK   ;   break;
+                                default:        break;
+                                }
+                                
+
                             	sprintf(entete.mtime,"%011lo",time(NULL));
                               	sprintf(entete.uid,"%d",buf_src.st_uid);
                              	sprintf(entete.gid,"%d",buf_src.st_gid);
