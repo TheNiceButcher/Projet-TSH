@@ -940,7 +940,7 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
                        	
                        	//preparer l'entete
                        	        buf_src = malloc(sizeof(struct stat));
-                       	        stat(fd_src, buf);
+                       	        stat(fd_src, buf_src);
                        	        
                                 memset(&entete,0,sizeof(struct posix_header));
                                 
