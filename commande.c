@@ -850,9 +850,9 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			    	//Fichier destination un contexte tar
 			    if (contexteTarball(simple_dest)){
 			        
-			         int index = recherche_fich_tar(simple_dest);
+			         int index1 = recherche_fich_tar(simple_dest);
  	               	//Fichie destination est un  .tar
-		           	if (index == strlen(simple_dest))
+		           	if (index1 == strlen(simple_dest))
 		           	{
 		           	    printf("en construction\n");
 	                     return 0;
@@ -876,12 +876,98 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			{
 			     if (contexteTarball(simple_dest)){
 			        
-			         int index = recherche_fich_tar(simple_dest);
+			         int index2 = recherche_fich_tar(simple_dest);
  	               	//Fichie destination est un  .tar
-		           	if (index == strlen(simple_dest))
+		           	if (index2 == strlen(simple_dest))
 		           	{
+		           	    	char *tar_file = malloc(strlen(simple_src));
+			               	strncpy(tar_file,simple2,index);
+		           	    	char *file_to_mv = malloc(strlen(simple_src));
+				            strcpy(file_to_mv,&simple_src[index]);
+				            fd_tar = open(tar_file,O_RDWR);
+				            fd_dest = open(simple_dest,O_RDWR);
+				            struct posix_header entete;
+				            unsigned int lus,taille = 0;
+	                        int nb_blocs = 0;
+	                        //cherche le fichier source en le fichier .tar puis remplire son entete  
+	                        while ((lus = read(fd_tar,&entete,512))>0)
+	                          {
+		                        if (entete.name[0] != '\0')
+		                           {
+		                               //si on trouve le fichier voulu 
+		                               if (entete.name[0] ==file_to_mv){
+		                                    struct posix_header entete2;
+		                                    memset(&entete2,0,sizeof(struct posix_header));
+		                                    
+		                              //remplire l'entete du fichier source 
+		                                    entete2.name=entete.name;
+		                                    entete2.mode=entete.mode;
+		                                    entete2.typeflag=entete.typeflag;
+		                                    entete2.mtime=entete.mtime;
+		                                    entete2.uid=entete.uid;
+		                                    entete2.gid=entete.gid;
+		                                    entete2.uname=entete.uname; 
+		                                    entete2.gname=entete.gname;
+		                                    entete2.size=entete.size;
+		                                    entete2.magic=entete.magic;
+		                                    set_checksum(&hd);
+		                                    
+                                           if (!check_checksum(&hd)) 
+	                             	          perror("Checksum impossible");
+	                             	          nb_blocs=0;
+	                             	          //compter le nombre de block dans le .tar en destinaton
+	                             	             while ((read(fd_dest,&header,512))>0)
+	                                              {
+	                                                     	if (header.name[0] != '\0')
+		                                                        {
+		                                                        	sscanf(header.size,"%o",&taille);
+		                                                         	nb_blocs += 1 + ((taille + 512 - 1) / 512);
+	                                                          	}
+	                         	                         else
+	                            	                         {
+	                                                    		break;
+	                             	                          }
+                       	                        }
+                       	                        
+	                             	          
+		                                        fd_mv= open(file_to_mv,O_RDWR);
+		                                  
+		                                    	while (read(fd_mv,&entete,BLOCKSIZE) > 0)
+                                                     {
+                                                             lseek(fd_dest,nb_blocs*512,SEEK_CUR);
+	                                                         write(fd_dest,&entete,lus);
+	                   
+	                                                   }  
+	                                                   close(fd_dest);
+	                                                   close(fd_mv);
+	                                                   close(fd_tar);
+		                                   
+		                                    return 0;
+		                               }
+		                               else{
+			                            sscanf(entete.size,"%o",&taille);
+			                            nb_blocs += 1 + ((taille + 512 - 1) / 512);
+		                              	lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+		                               }
+		                           }
+		                       
+		                       else
+		                          {
+			                            break;
+		                           }
+	                            }
+
+				            
+				            
+                         	
+
+				            
+		           	    
 		           	    printf("en construction\n");
 	                     return 0;
+	                     
+	                     
+	                     
 		           	}
 		           	//Fichie destination est dans un fichier tar
 		           	else {
@@ -926,7 +1012,7 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 
 	                   while ((l = read(fd_dest,&header,512))>0)
 	                     {
-	                          	if (fd_dest.name[0] != '\0')
+	                          	if (header.name[0] != '\0')
 		                         {
 		                               	sscanf(header.size,"%o",&taille);
 		                               	nb_blocs += 1 + ((taille + 512 - 1) / 512);
