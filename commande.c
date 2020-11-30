@@ -957,13 +957,6 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		                           }
 	                            }
 
-				            
-				            
-                         	
-
-				            
-		           	    
-		           	    printf("en construction\n");
 	                     return 0;
 	                     
 	                     
@@ -978,6 +971,15 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			    }
 			    	//Fichie destination est un fichier simple
 			    else{
+			                /*char *tar_file = malloc(strlen(simple_src));
+			               	strncpy(tar_file,simple2,index);
+		           	    	char *file_to_mv = malloc(strlen(simple_src));
+				            strcpy(file_to_mv,&simple_src[index]);
+			                */
+			         
+			        
+			        
+			        
 			        printf("en construction\n");
 	                 return 0;
 			    }
