@@ -21,6 +21,7 @@ Fichier qui fait les actions demandé sur les tar
 */
 /*
 REnvoie le nom des fichiers contenus dans un tar
+Si le tar n'existe pas, on renvoie NULL
 */
 char **list_fich(char *tar)
 {
@@ -36,10 +37,6 @@ char **list_fich(char *tar)
 	fd = open(tar,O_RDONLY);
 	if (fd==-1)
 	{
-		char *error = malloc(1024);
-		sprintf(error,"Erreur list_fich %s",tar);
-		perror(error);
-		free(error);
 		return NULL;
 	}
 	//Tant qu'on peut lire dans le fichier tar, on le fait et on le stocke dans une variable posix_header

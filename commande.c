@@ -269,7 +269,10 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					char **list = list_fich(simplified_path);
 					if (list == NULL)
 					{
-						printf("Erreur\n");
+						char *error = malloc(strlen(simplified_path)+strlen("ls \n"));
+						sprintf(error,"ls %s\n",simplified_path);
+						perror(error);
+						free(error);
 					}
 					else
 					{
@@ -331,7 +334,10 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 						strncpy(file_to_find,&simplified_path[index],strlen(simplified_path)-index + 1);
 						if (list == NULL)
 						{
-							printf("Erreur\n");
+							char *error = malloc(strlen(tar)+strlen("ls \n"));
+							sprintf(error,"ls %s\n",tar);
+							perror(error);
+							free(error);
 						}
 						else
 						{
@@ -348,13 +354,10 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 							{
 								if (strncmp(list[k],file_to_find,strlen(file_to_find))==0)
 								{
-									//printf("Bonjour %s\n",list[k]);
 									if (list[k][strlen(simplified_path) - index] == '\0'||list[k][strlen(simplified_path) - index] == '/')
 									{
-										//printf("Bonjour %s\n",list[k]);
 										int jpp = strlen(file_to_find) + 1;
 										char *fich_to_print = decoup_nom_fich(list[k],&jpp);
-										//fich_to_print != NULL && printf("%s\n",fich_to_print);
 										int d = 0;
 										for (; d < i_deja_trouve;d++)
 										{
@@ -498,7 +501,10 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					}
 					else
 					{
-						printf("Erreur\n");
+						char *error = malloc(strlen(tar)+strlen("cd \n"));
+						sprintf(error,"cd %s\n",tar);
+						perror(error);
+						free(error);
 					}
 				}
 				//Le repertoire se situe a la racine du tar ou dans un dossier au dessus
@@ -710,34 +716,22 @@ int rm(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		}
 		else
 		{
-			//Suppression fichier en dehors d'un .tar
-			if (option == 0)
+			int fils = fork();
+			if (fils == -1)
 			{
-				simple2[strlen(simple2)-1] = '\0';
-				if (unlink(simple2) == -1)
-				{
-					char * error = malloc(1024);
-					sprintf(error,"rm %s ",simple2);
-					perror(error);
-					free(error);
-				}
+				perror("fork rm");
+				continue;
+			}
+			if (fils==0)
+			{
+				if (option)
+					execlp("rm","rm","-r",liste_argument[i],NULL);
+				else
+					execlp("rm","rm",liste_argument[i],NULL);
+				exit(0);
 			}
 			else
-			{
-				int fils = fork();
-				if (fils == -1)
-				{
-					perror("fork rm");
-					continue;
-				}
-				if (fils==0)
-				{
-					execlp("rm","rm","-r",liste_argument[i],NULL);
-					exit(0);
-				}
-				else
-					wait(NULL);
-			}
+				wait(NULL);
 		}
 		free(simple);
 		free(simple2);
@@ -813,7 +807,7 @@ int rmdir_tar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 }
 int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 {
-     struct stat stat_src;
+     /*struct stat stat_src;
      char *src_final, *dest_final;
      //controler le nombre d'arguments
     if (nb_arg_cmd!= 3) {
@@ -835,13 +829,13 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		strcat(dest,liste_argument[2]);
 		char *simple_dest = malloc(1024);
 		strcpy(simple_dest,simplifie_chemin(dest));
-     
+
      //verifier si le fichier source existe
     if (stat(src, &stat_src)== -1) {
         printf("le fichier %s n'existe pas\n",src);
         exit(EXIT_SUCCESS);
     }
-    
+
     	if (contexteTarball(simple_src)){
     	   int index = recherche_fich_tar(simple_src);
 		//Fichier source est un .tar
@@ -849,7 +843,7 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			{
 			    	//Fichier destination un contexte tar
 			    if (contexteTarball(simple_dest)){
-			        
+
 			         int index1 = recherche_fich_tar(simple_dest);
  	               	//Fichie destination est un  .tar
 		           	if (index1 == strlen(simple_dest))
@@ -862,20 +856,20 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		           	    printf("en construction\n");
 	                     return 0;
 		           	}
-			        
+
 			    }
 			    	//Fichie destination est un fichier simple
 			    else{
 			        printf("en construction\n");
 	                 return 0;
 			    }
-			    
+
 			}
 			//fichier source est dans un fichier .tar
 			else
 			{
 			     if (contexteTarball(simple_dest)){
-			        
+
 			         int index2 = recherche_fich_tar(simple_dest);
  	               	//Fichie destination est un  .tar
 		           	if (index2 == strlen(simple_dest))
@@ -889,30 +883,30 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				            struct posix_header entete;
 				            unsigned int lus,taille = 0;
 	                        int nb_blocs = 0;
-	                        //cherche le fichier source en le fichier .tar puis remplire son entete  
+	                        //cherche le fichier source en le fichier .tar puis remplire son entete
 	                        while ((lus = read(fd_tar,&entete,512))>0)
 	                          {
 		                        if (entete.name[0] != '\0')
 		                           {
-		                               //si on trouve le fichier voulu 
+		                               //si on trouve le fichier voulu
 		                               if (entete.name[0] ==file_to_mv){
 		                                    struct posix_header entete2;
 		                                    memset(&entete2,0,sizeof(struct posix_header));
-		                                    
-		                              //remplire l'entete du fichier source 
+
+		                              //remplire l'entete du fichier source
 		                                    entete2.name=entete.name;
 		                                    entete2.mode=entete.mode;
 		                                    entete2.typeflag=entete.typeflag;
 		                                    entete2.mtime=entete.mtime;
 		                                    entete2.uid=entete.uid;
 		                                    entete2.gid=entete.gid;
-		                                    entete2.uname=entete.uname; 
+		                                    entete2.uname=entete.uname;
 		                                    entete2.gname=entete.gname;
 		                                    entete2.size=entete.size;
 		                                    entete2.magic=entete.magic;
 		                                    set_checksum(&hd);
-		                                    
-                                           if (!check_checksum(&hd)) 
+
+                                           if (!check_checksum(&hd))
 	                             	          perror("Checksum impossible");
 	                             	          nb_blocs=0;
 	                             	          //compter le nombre de block dans le .tar en destinaton
@@ -928,20 +922,20 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	                                                    		break;
 	                             	                          }
                        	                        }
-                       	                        
-	                             	          
+
+
 		                                        fd_mv= open(file_to_mv,O_RDWR);
-		                                  
+
 		                                    	while (read(fd_mv,&entete,BLOCKSIZE) > 0)
                                                      {
                                                              lseek(fd_dest,nb_blocs*512,SEEK_CUR);
 	                                                         write(fd_dest,&entete,lus);
-	                   
-	                                                   }  
+
+	                                                   }
 	                                                   close(fd_dest);
 	                                                   close(fd_mv);
 	                                                   close(fd_tar);
-		                                   
+
 		                                    return 0;
 		                               }
 		                               else{
@@ -950,7 +944,7 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		                              	lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
 		                               }
 		                           }
-		                       
+
 		                       else
 		                          {
 			                            break;
@@ -958,16 +952,16 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	                            }
 
 	                     return 0;
-	                     
-	                     
-	                     
+
+
+
 		           	}
 		           	//Fichie destination est dans un fichier tar
 		           	else {
 		           	    printf("en construction\n");
 	                     return 0;
 		           	}
-			        
+
 			    }
 			    	//Fichie destination est un fichier simple
 			    else{
@@ -975,22 +969,21 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			               	strncpy(tar_file,simple2,index);
 		           	    	char *file_to_mv = malloc(strlen(simple_src));
 				            strcpy(file_to_mv,&simple_src[index]);
-			                */
-			         
-			        
-			        
-			        
+
+
+
+
 			        printf("en construction\n");
 	                 return 0;
 			    }
-			    
+
 			}
-    	 
-    	    
+
+
     	}
     	else if(contexteTarball(simple_dest)){
-    	    
-    	    
+
+
 		 int index = recherche_fich_tar(simple_dest);
 		//Fichier .tar
 			if (index == strlen(simple_dest))
@@ -1008,7 +1001,7 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	                  {
 	                 	return 0;
 	                  }
-	                  
+
 	                //on compte le nombre de bloc dans le fichier dest
 	                  nb_blocs=0;
 
@@ -1018,26 +1011,26 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		                         {
 		                               	sscanf(header.size,"%o",&taille);
 		                               	nb_blocs += 1 + ((taille + 512 - 1) / 512);
-                             		
+
 	                           	}
 	                         	else
 	                            	{
 	                            		break;
 	                             	}
                        	}
-                       	
+
                        	//preparer l'entete
                        	        buf_src = malloc(sizeof(struct stat));
                        	        stat(fd_src, buf_src);
-                       	        
+
                                 memset(&entete,0,sizeof(struct posix_header));
-                                
-                              	sprintf(entete.name,"%s",src); 
+
+                              	sprintf(entete.name,"%s",src);
                              	sprintf(entete.mode,buf_src.st_mode);
 
                                 //entete.typeflag = mystat.st_mode & ~S_IFMT;
-                                
-                                
+
+
                                switch (buf_src.st_mode & S_IFMT) {
                                 case S_IFBLK:  entete.typeflag=S_IFBLK    ;   break;
                                 case S_IFCHR:  entete.typeflag=S_IFCHR    ;   break;
@@ -1048,7 +1041,7 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
                                 case S_IFSOCK: entete.typeflag=S_IFSOCK   ;   break;
                                 default:        break;
                                 }
-                                
+
 
                             	sprintf(entete.mtime,"%011lo",time(NULL));
                               	sprintf(entete.uid,"%d",buf_src.st_uid);
@@ -1058,38 +1051,38 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
                             	sprintf(entete.size,"%011o",buf_src.st_size);
                                 strcpy(entete.magic,"ustar");
                              	set_checksum(&hd);
-                                if (!check_checksum(&hd)) 
+                                if (!check_checksum(&hd))
 	                             	perror("Checksum impossible");
 
-	                  
+
                 	while ((lus=read(fd_src,&entete,BLOCKSIZE)) > 0)
                      {
                           lseek(fd_dest,nb_blocs*512,SEEK_CUR);
 	                       write(fd_dest,&entete,lus);
-	                   
+
 	                 }
 	                 close(fd_src);
 	                 close(fd_dest);
 	                 return 0;
 			}
-			else 
+			else
 			//fichier destination est dans un .tar
 			{
 			    	printf("en construction\n");
-	        return 0;  
+	        return 0;
 			}
-    	    
-    	    
-    	    
-    	    
-    	    
+
+
+
+
+
     	}
-    	
-    	
-    	
+
+
+
     	//ni le fichier source ni le fichier destination est un contexte tar
     else{
-    
+
       //verifier si dest est un chemin
      if(dest[0]=='/')
         {
@@ -1126,8 +1119,8 @@ int mv(char **liste_argument,int nb_arg_cmd,shell *tsh)
      free(dest);
      exit(EXIT_SUCCESS);
 
-
-
+*/
+	printf("mv en construction\n");
 	return 0;
 }
 /*
@@ -1138,7 +1131,6 @@ int cat(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	//Parcours des arguments de cat
 	for (int i = 1;i < nb_arg_cmd;i++)
 	{
-		int fd;
 		char * file = malloc(1024);
 		strcpy(file,tsh->repertoire_courant);
 		strcat(file,"/");
@@ -1168,7 +1160,10 @@ int cat(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				strcpy(file_to_find,&simple[index]);
 				if (list == NULL)
 				{
-					printf("Erreur\n");
+					char *error = malloc(strlen(tar)+strlen("cat \n"));
+					sprintf(error,"cat %s\n",tar);
+					perror(error);
+					free(error);
 				}
 				else
 				{
@@ -1185,24 +1180,19 @@ int cat(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		//Fichier en dehors d'un tar
 		else
 		{
-			simple[strlen(simple)-1] = '\0';
-			fd = open(simple,O_RDONLY);
-			if(fd==-1)
+			int fils = fork();
+			if (fils == -1)
 			{
-				char * error = malloc(1024);
-				sprintf(error,"cat %s",simple);
-				perror(error);
-				free(error);
+				perror("fork cat");
 				continue;
 			}
-			char buffer[1024];
-			int lus = 0;
-			while ((lus = read(fd,buffer,1024)) > 0)
+			if (fils == 0)
 			{
-				write(1,buffer,lus);
+				execlp("cat","cat",liste_argument[i],NULL);
+				exit(0);
 			}
+			wait(NULL);
 		}
-
 	}
 	return 0;
 }
