@@ -16,6 +16,29 @@
 	Fonctions gerant le fontionnement du shell
 */
 /*
+Renvoie le shell qui gere les commandes et les options en argument sur les
+tarballs
+*/
+shell creation_shell(char **cmd_tarballs,char **option)
+{
+	shell tsh;
+	memset(&tsh, 0, sizeof(shell));
+	tsh.repertoire_courant = malloc(1024);
+	strcpy(tsh.repertoire_courant,getcwd(NULL,1024));
+	tsh.quit = 0;
+	tsh.tarball = 0;
+	tsh.cmd_tarballs = cmd_tarballs;
+	tsh.option = option;
+	tsh.nb_cmds = 0;
+	while(cmd_tarballs[tsh.nb_cmds] != NULL)
+	{
+		tsh.nb_cmds++;
+	}
+	if (tsh.nb_cmds > 0)
+		tsh.nb_cmds--;
+	return tsh;
+}
+/*
 Fonction qui prend en argument la commande en entier et une adresse de son index
 courant.
 Elle parcourt la commande et renvoie le premier mot qu'elle trouve.
@@ -219,7 +242,7 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		    if(cmds==1)
 			{
 				//On verifie que la commande peut s'effectuer sur les tar ou non
-				if (estCommandeTar(nom_commande))
+				if (estCommandeTar(nom_commande,tsh))
 				{
 					traitement_commandeTar(liste_argument,nb_arg_cmd,tsh);
 				}
@@ -242,7 +265,7 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					wait(NULL);
 				}
 			}
-			
+
 			//si notre commande contient des pipe
 			else
 			{
@@ -273,7 +296,7 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
              while (strcmp(liste_argument[j],"|") != 0){
               commandes[k] = liste_argument[j];
               j++;
-               
+
                   if (liste_argument[j] == NULL){
                      //la variable fin va nous indiquer si on a lis tout les commandes
                      fin = 1;
@@ -299,24 +322,24 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 
 
            if(pid==0){
-           
+
            if (i == 0){ //si on est dans la premier commande
 
                dup2(fd2[1], STDOUT_FILENO);
            }
-           
-           
+
+
            else if (i == cmds - 1){ // si on nest dans la dernier commande
                if (cmds % 2 != 0){
                    dup2(fd[0],STDIN_FILENO);
                }
-               
+
                   else{
                    dup2(fd2[0],STDIN_FILENO);
                    }
            }
-           
-           
+
+
           //si on est dans une commande qui est au millieu on doit utiliser 2 pipe un pour recuper
           //sa sortie et lautre pour ecrire dans son entrer
               else{
@@ -336,9 +359,9 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
      }
      else if(i==cmds -1){
          if(cmds % 2 !=0){ close(fd[0]); }
-         
+
           else{ close(fd2[0]); }
-          
+
             }
      else{
          if (i%2 != 0){

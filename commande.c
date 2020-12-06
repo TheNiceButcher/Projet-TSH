@@ -55,12 +55,11 @@ int contexteTarball(char*chemin)
 Verifie si la commande en argument est une commande fonctionnant dans un tarball
 Renvoie 1 si c'est le cas, 0 sinon
 */
-int estCommandeTar(char *mot_commande)
+int estCommandeTar(char *mot_commande,shell * tsh)
 {
-	char *cmd_tarballs[] = {"cd","ls","cat","mkdir","rmdir","mv","pwd","cp","rm"};
 	for (int i = 0; i < 9;i++)
 	{
-		if (strcmp(mot_commande,cmd_tarballs[i])==0)
+		if (strcmp(mot_commande,tsh -> cmd_tarballs[i])==0)
 			return 1;
 	}
 	return 0;
@@ -123,17 +122,19 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 {
 	char *nom_commande = malloc(10);
 	strcpy(nom_commande,liste_argument[0]);
+	int nb_cmds = tsh->nb_cmds;
 	int (*tab[9])(char**,int,shell*)= {&cd,&ls,&cat,&mkdir_tar,&rmdir_tar,&mv,&pwd,&cp,&rm};
-	char *cmd_tarballs[] = {"cd","ls","cat","mkdir","rmdir","mv","pwd","cp","rm"};
-	char *option[] = {NULL,"-l",NULL,NULL,NULL,NULL,NULL,"-r","-r"};
-	for(int i = 0; i < 9;i++)
+	/*char *cmd_tarballs[] = {"cd","ls","cat","mkdir","rmdir","mv","pwd","cp","rm"};
+	char *option[] = {NULL,"-l",NULL,NULL,NULL,NULL,NULL,"-r","-r"};*/
+	for(int i = 0; i < nb_cmds;i++)
 	{
-		if(strcmp(nom_commande,cmd_tarballs[i])==0)
+		//On verifie si la commande tapee est une commande qui doit avoir un equivalent sur les tarballs
+		if(strcmp(nom_commande,tsh->cmd_tarballs[i])==0)
 		{
 			//Gestion des options
 			char ** options = recherche_option(liste_argument,nb_arg_cmd);
 			int a_bonnes_options = 1;
-			if (options && option[i] == NULL)
+			if (options && tsh->option[i] == NULL)
 			{
 				a_bonnes_options = 0;
 			}
@@ -141,10 +142,11 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			{
 				if(options)
 				{
+					//On verifie si les options indiquees dans la commande sont pris en charge
 					int m = 0;
 					while (options[m]!=NULL)
 					{
-						if (strcmp(options[m],option[i]))
+						if (strcmp(options[m],tsh->option[i]))
 							a_bonnes_options = 0;
 						m++;
 					}
@@ -170,7 +172,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					free(absol_path);
 				}
 				//Si la boucle est alle juste qu'au bout et que la commande n'est ni cd ni pwd, on lance exec
-				if (j==nb_arg_cmd && i != 0 && i != 6)
+				if (j==nb_arg_cmd && strcmp(tsh->cmd_tarballs[i],"cd") && strcmp(tsh->cmd_tarballs[i],"pwd"))
 				{
 					int fils = fork();
 					if (fils == -1)
