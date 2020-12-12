@@ -115,6 +115,89 @@ int recherche_fich_tar(char *chemin)
 	return index;
 }
 /*
+Renvoie os
+*/
+int presentDansTar(char *tar,char *file)
+{
+	char ** list_file = list_fich(tar);
+	//On verifie si le fichier est dans le tar mais n'a pas d'entete a lui
+	char *file2 = malloc(strlen(file) + 1);
+	if (file[strlen(file)-1] != '/')
+	{
+		sprintf(file2,"%s/",file);
+	}
+	else
+	{
+		sprintf(file2,"%s",file);
+	}
+	int i = 0;
+	while (list_file[i]!=NULL)
+	{
+		if((strcmp(file,list_file[i])==0) || (strncmp(file2,list_file[i],strlen(file2))==0))
+			return 1;
+		i++;
+	}
+	return 0;
+}
+/*
+Verifie si le chemin en argument est valide, c'est à dire si le fichier existe
+pour un chemin sans tar et si le fichier tar le plus "profond" dans lechemin existe.
+Renvoie 1 s'il existe, 0 sinon.
+*/
+int cheminValide(char *path,char * cmd)
+{
+	struct stat st;
+	char * file = malloc(strlen(path));
+	strcpy(file,path);
+	if(contexteTarball(path))
+	{
+		int i = recherche_fich_tar(path);
+		//printf("%s\n",tar);
+		strncpy(file,path,i);
+		file[i] = '\0';
+		if(file[i-1]=='/')
+			file[i-1] = '\0';
+		int b_f = 0;
+		char * lo = decoup_nom_fich(path, &b_f);
+		int f = 0;
+		while (lo != NULL)
+		{
+			if(strcmp(lo,"..")==0)
+			{
+				f = 1;
+				break;
+			}
+			lo = decoup_nom_fich(path,&b_f);
+		}
+		if(b_f > i && f != 0)
+		{
+			char *maman = malloc((b_f-4) - i + 1);
+			strncpy(maman,&path[i],(b_f-4) - i + 1);
+			maman[(b_f-4) - i + 1] = '\0';
+			if(presentDansTar(file,maman)==0)
+			{
+				char *error = malloc(strlen(path)+strlen(cmd)+3 +strlen("Aucun fichier de ce nom\n"));
+				sprintf(error,"%s %s : Aucun fichier de ce nom\n",cmd,path);
+				write(STDERR_FILENO,error,strlen(error));
+				free(error);
+				free(file);
+				return 0;
+			}
+		}
+	}
+	if (stat(file,&st)==-1)
+	{
+		char *error = malloc(strlen(path)+strlen(cmd)+3);
+		sprintf(error,"%s %s",cmd,path);
+		perror(error);
+		free(error);
+		free(file);
+		return 0;
+	}
+	free(file);
+	return 1;
+}
+/*
 Gere le traitement de commandes réalisable sur les tar
 
 */
@@ -124,8 +207,6 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	strcpy(nom_commande,liste_argument[0]);
 	int nb_cmds = tsh->nb_cmds;
 	int (*tab[9])(char**,int,shell*)= {&cd,&ls,&cat,&mkdir_tar,&rmdir_tar,&mv,&pwd,&cp,&rm};
-	/*char *cmd_tarballs[] = {"cd","ls","cat","mkdir","rmdir","mv","pwd","cp","rm"};
-	char *option[] = {NULL,"-l",NULL,NULL,NULL,NULL,NULL,"-r","-r"};*/
 	for(int i = 0; i < nb_cmds;i++)
 	{
 		//On verifie si la commande tapee est une commande qui doit avoir un equivalent sur les tarballs
@@ -228,6 +309,7 @@ int ls(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			if (contexteTarball(liste_argument[i]))
 			{
 				printf("%s:\n",liste_argument[i]);
+
 			}
 			//Option -l pour un fichier n'etant pas dans un tar
 			else
@@ -663,21 +745,36 @@ int rm(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		if (liste_argument[i][0] == '-')
 			continue;
 		char * simple = malloc(strlen(liste_argument[i]) + strlen(tsh->repertoire_courant)+3);
-		strcpy(simple,tsh->repertoire_courant);
-		strcat(simple,"/");
-		strcat(simple,liste_argument[i]);
-		int dossier = 0;
-		if (simple[strlen(simple)-1] != '/')
+		sprintf(simple,"%s/%s",tsh->repertoire_courant,liste_argument[i]);
+		if (cheminValide(simple,"rm")==0)
 		{
-			strcat(simple,"/");
+			continue;
 		}
-		else
-			dossier = 1;
 		char * simple2 = simplifie_chemin(simple);
 		//Fichier dans un .tar
 		if (contexteTarball(simple2))
 		{
 			int index = recherche_fich_tar(simple2);
+			char *tar = malloc(strlen(simple2));
+			strncpy(tar,simple2,index);
+			//On enleve le / du tar
+			if (tar[index-1]=='/')
+			{
+				tar[index-1] = '\0';
+			}
+			struct stat st;
+			//On verifie le fichier tar existe
+			if(stat(tar,&st)==-1)
+			{
+				char *error = malloc(1024);
+				sprintf(error,"rm %s : introuvable\n",simple2);
+				write(STDERR_FILENO,error,strlen(error));
+				free(error);
+				free(tar);
+				free(simple2);
+				free(simple);
+				continue;
+			}
 			//Si on doit supprimer un fichier  .tar
 			if (index == strlen(simple2))
 			{
@@ -704,17 +801,14 @@ int rm(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			//Suppression dans un .tar
 			else
 			{
-				char *tar = malloc(strlen(simple2));
-				strncpy(tar,simple2,index);
 				char *file_to_rm = malloc(strlen(simple2));
 				strcpy(file_to_rm,&simple2[index]);
-				if (dossier == 0)
-					file_to_rm[strlen(file_to_rm)-1] = '\0';
-				tar[strlen(tar)-1] = '\0';
+				if(tar[strlen(tar)-1]=='/')
+					tar[strlen(tar)-1] = '\0';
 				supprimer_fichier_tar(tar,file_to_rm,option);
-				free(tar);
 				free(file_to_rm);
 			}
+			free(tar);
 		}
 		else
 		{
@@ -1170,9 +1264,9 @@ int cat(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				else
 				{
 					if (liste_argument[i][strlen(liste_argument[i])-1]=='/')
-						file_to_find[strlen(file_to_find)] = '\0';
-					else
 						file_to_find[strlen(file_to_find)-1] = '\0';
+					else
+						file_to_find[strlen(file_to_find)] = '\0';
 					affiche_fichier_tar(tar,file_to_find);
 				}
 				continue;

@@ -269,120 +269,119 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			//si notre commande contient des pipe
 			else
 			{
+				  int i = 0;
+	              int cmds=0;
+	              int fd[2];
+	              int fd2[2];
 
-			  int i = 0;
-              int cmds=0;
-              int fd[2];
-              int fd2[2];
-
-              //compter le nombre de commande entre pipe
-              for(int i = 0; i < nb_arg_cmd; i++){
-                 if (strcmp(liste_argument[i], "|") == 0){
-                   cmds++;
-                 }
-              }
-              cmds++;
-
-
-             int j = 0;
-             char ** commandes = malloc(20*sizeof(char*));
-
-             int fin= 0;
-             pid_t pid;
-
-             while(liste_argument[j] != NULL && fin!= 1){
-
-             int k = 0;
-             while (strcmp(liste_argument[j],"|") != 0){
-              commandes[k] = liste_argument[j];
-              j++;
-
-                  if (liste_argument[j] == NULL){
-                     //la variable fin va nous indiquer si on a lis tout les commandes
-                     fin = 1;
-                     k++;
-                     break;
-                  }
-                k++;
-              }
-
-            commandes[k] = NULL;
-            j++;
-
-           if (i % 2 != 0){// si i est impaire
-
-           pipe(fd);
-
-            }
-
-          else{   pipe(fd2);  }
-
-          pid=fork();
+	              //compter le nombre de commande entre pipe
+	              for(int i = 0; i < nb_arg_cmd; i++){
+	                 if (strcmp(liste_argument[i], "|") == 0){
+	                   cmds++;
+	                 }
+	              }
+	              cmds++;
 
 
+	             int j = 0;
+	             char ** commandes = malloc(20*sizeof(char*));
 
-           if(pid==0){
+	             int fin= 0;
+	             pid_t pid;
+	             while(liste_argument[j] != NULL && fin!= 1){
 
-           if (i == 0){ //si on est dans la premier commande
+		             int k = 0;
+		             while (strcmp(liste_argument[j],"|") != 0){
+			              commandes[k] = liste_argument[j];
+			              j++;
 
-               dup2(fd2[1], STDOUT_FILENO);
-           }
+		                  if (liste_argument[j] == NULL){
+		                     //la variable fin va nous indiquer si on a lis tout les commandes
+		                     fin = 1;
+		                     k++;
+		                     break;
+		                  }
+						  k++;
+	            	}
+		            commandes[k] = NULL;
+		            j++;
 
+	           		if (i % 2 != 0){
+					// si i est impaire
 
-           else if (i == cmds - 1){ // si on nest dans la dernier commande
-               if (cmds % 2 != 0){
-                   dup2(fd[0],STDIN_FILENO);
-               }
+	           			pipe(fd);
 
-                  else{
-                   dup2(fd2[0],STDIN_FILENO);
-                   }
-           }
+	            	}
 
+	          		else
+					{
+						pipe(fd2);
+					}
 
-          //si on est dans une commande qui est au millieu on doit utiliser 2 pipe un pour recuper
-          //sa sortie et lautre pour ecrire dans son entrer
-              else{
-               if (i % 2 != 0){
-                   dup2(fd2[0],STDIN_FILENO);
-                   dup2(fd[1],STDOUT_FILENO);
-               }else{
-                   dup2(fd[0],STDIN_FILENO);
-                   dup2(fd2[1],STDOUT_FILENO);
-               }
-           }
+	          		pid=fork();
 
-             execvp(commandes[0],commandes);
-       }
-     if(i==0){
-     close(fd2[1]);
-     }
-     else if(i==cmds -1){
-         if(cmds % 2 !=0){ close(fd[0]); }
+					if(pid==0){
 
-          else{ close(fd2[0]); }
+		           		if (i == 0){ //si on est dans la premier commande
 
-            }
-     else{
-         if (i%2 != 0){
-          close(fd2[0]);
-          close(fd[1]);
-         }
-        else{
-         close(fd[0]);
-         close(fd2[1]);
-        }
-
-       }
-
-     waitpid(pid,NULL,0);
-   i++;
-   }
+		               		dup2(fd2[1], STDOUT_FILENO);
+		           		}
 
 
-			}
+		           		else
+							if (i == cmds - 1){ // si on nest dans la dernier commande
+			               		if (cmds % 2 != 0){
+			                   		dup2(fd[0],STDIN_FILENO);
+			               		}
 
-			}
+			               		else{
+			                   		dup2(fd2[0],STDIN_FILENO);
+			                   }
+		           			}
+
+
+	          //si on est dans une commande qui est au millieu on doit utiliser 2 pipe un pour recuper
+	          //sa sortie et lautre pour ecrire dans son entrer
+		              else
+					  {
+			               if (i % 2 != 0){
+			                   dup2(fd2[0],STDIN_FILENO);
+			                   dup2(fd[1],STDOUT_FILENO);
+			               }
+						   else{
+			                   dup2(fd[0],STDIN_FILENO);
+			                   dup2(fd2[1],STDOUT_FILENO);
+			               }
+				   	  }
+				  	  traitement_commande(commandes,k,tsh);
+				  	  exit(0);
+	       		}
+		        if(i==0){
+		     		close(fd2[1]);
+		     	}
+		     	else if(i==cmds -1){
+		         	if(cmds % 2 !=0){ close(fd[0]); }
+
+		          	else{ close(fd2[0]); }
+
+		            }
+		     		else{
+		         		if (i%2 != 0){
+		          			close(fd2[0]);
+		          			close(fd[1]);
+		         		}
+		        		else{
+		         			close(fd[0]);
+		         			close(fd2[1]);
+		        		}
+
+	       			}
+
+		   			waitpid(pid,NULL,0);
+		   			i++;
+	   		}
+		}
+	}
 	}
 	free(nom_commande);
 	return 0;

@@ -146,7 +146,7 @@ int affiche_fichier_tar(char *tar,char*file)
 		}
 
 	}
-	char *error = malloc(strlen(file)+strlen("cat  : est un dossier\n")+2);
+	char *error = malloc(strlen(file)+strlen("cat  : Fichier  introuvable\n")+2);
 	sprintf(error,"cat : Fichier %s introuvable\n",file);
 	write(STDERR_FILENO,error,strlen(error));
 	free(error);
@@ -158,6 +158,7 @@ REnvoie 0 en cas d'echec, 1 sinon
 */
 int supprimer_fichier_tar(char *tar,char *file,int option)
 {
+	printf("%s\n",file);
 	int fd,fd_copie,lus;
 	char *file2 = malloc(strlen(file)+3);
 	strcpy(file2,file);
