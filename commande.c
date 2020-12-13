@@ -265,8 +265,11 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	}
 	char **options = recherche_option(liste_argument,nb_arg_cmd);
 	int nb_options = 0;
-	while(options[nb_options] != NULL)
-		nb_options++;
+	if (options)
+	{
+		while(options[nb_options] != NULL)
+			nb_options++;
+	}
 	/*Si la commande est ls sans argument, on traite directement ls sur le
 	repertoire courant*/
 	if ((nb_arg_cmd - nb_options == 1) && strcmp(nom_commande,"ls")==0)

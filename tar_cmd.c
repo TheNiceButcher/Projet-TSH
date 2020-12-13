@@ -523,13 +523,13 @@ int rmdir_tar(char *file, char **options,shell *tsh)
 {
 	char *simple_file = malloc(strlen(file)+strlen(tsh->repertoire_courant)+3);
 	sprintf(simple_file,"%s/%s",tsh->repertoire_courant,file);
-	printf("%s\n",simple_file);
+	//printf("%s\n",simple_file);
 	if (cheminValide(simple_file,"rmdir"))
 	{
 		sprintf(simple_file,"%s",simplifie_chemin(simple_file));
 		if (contexteTarball(simple_file))
 		{
-			
+
 		}
 		else
 		{
