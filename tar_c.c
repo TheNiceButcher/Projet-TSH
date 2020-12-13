@@ -359,6 +359,15 @@ int creation_repertoire_tar(char*tar,char*repr)
 	fd = open(tar,O_WRONLY);
 	lseek(fd,nb_blocs*512,SEEK_CUR);
 	write(fd,&hd,512);
+	nb_blocs++;
+	//On retablit le fait que le tar est constitue de blocs de 20 blocs de 512 octets
+	while (nb_blocs % 20 != 0)
+	{
+		char buffer[BLOCKSIZE];
+		memset(buffer,0,BLOCKSIZE);
+		write(fd,buffer,BLOCKSIZE);
+		nb_blocs++;
+	}
 	close(fd);
 	return 0;
 }

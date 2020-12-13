@@ -483,12 +483,11 @@ int mkdir_tar(char *file, char **options,shell *tsh)
 		else
 		{
 			file2[strlen(file2)-1] = '\0';
-			printf("%s\n",file2);
 			char *tar = malloc(strlen(file2));
 			strncpy(tar,file2,index);
 			tar[index-1] = '\0';
 			char *repr_to_create = malloc (strlen(file2)-index+3);
-			strncpy(repr_to_create,&file[index],strlen(file2)-index+1);
+			strncpy(repr_to_create,&file2[index],strlen(file2)-index+1);
 			repr_to_create[strlen(repr_to_create)] = '\0';
 			if (repr_to_create[strlen(repr_to_create)-1] != '/')
 			{
@@ -523,7 +522,6 @@ int rmdir_tar(char *file, char **options,shell *tsh)
 {
 	char *simple_file = malloc(strlen(file)+strlen(tsh->repertoire_courant)+3);
 	sprintf(simple_file,"%s/%s",tsh->repertoire_courant,file);
-	//printf("%s\n",simple_file);
 	if (cheminValide(simple_file,"rmdir"))
 	{
 		sprintf(simple_file,"%s",simplifie_chemin(simple_file));
@@ -552,7 +550,7 @@ int rmdir_tar(char *file, char **options,shell *tsh)
 }
 int mv(char *file,char *destination,char **options,shell *tsh)
 {
-	     /*struct stat stat_src;
+	    /* struct stat stat_src;
 	     char *src_final, *dest_final;
 	     //controler le nombre d'arguments
 	    if (nb_arg_cmd!= 3) {
@@ -710,7 +708,7 @@ int mv(char *file,char *destination,char **options,shell *tsh)
 				    }
 				    	//Fichie destination est un fichier simple
 				    else{
-				                /*char *tar_file = malloc(strlen(simple_src));
+				                char *tar_file = malloc(strlen(simple_src));
 				               	strncpy(tar_file,simple2,index);
 			           	    	char *file_to_mv = malloc(strlen(simple_src));
 					            strcpy(file_to_mv,&simple_src[index]);
@@ -862,9 +860,7 @@ int mv(char *file,char *destination,char **options,shell *tsh)
 	}
 	     free(src);
 	     free(dest);
-	     exit(EXIT_SUCCESS);
-
-	*/
+	     exit(EXIT_SUCCESS);*/
 		printf("mv en construction\n");
 		return 0;
 }

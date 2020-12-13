@@ -18,10 +18,6 @@ int main(int argc, char const *argv[]) {
 	char *cmd_tarballs[] = {"cd","ls","cat","mkdir","rmdir","mv","pwd","cp","rm"};
 	char *option[] = {NULL,"-l",NULL,NULL,NULL,NULL,NULL,"-r","-r"};
 	shell tsh = creation_shell(cmd_tarballs,option);
-	/*tsh.quit = 0;
-	tsh.repertoire_courant = malloc(1024);
-	strcpy(tsh.repertoire_courant,getcwd(NULL,1024));
-	tsh.tarball = 0;*/
 	while (tsh.quit == 0)
 	{
 		int nb_arg_cmd; //Stocke le nombre d'arguments de la commande
