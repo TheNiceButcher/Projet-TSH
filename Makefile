@@ -1,14 +1,16 @@
 FLAGS = -Wall -pedantic -g
-FILES = tsh.o commande.o shell.o tar_c.o
+FILES = tsh.o commande.o shell.o tar_c.o tar_cmd.o
 all: $(FILES)
 	gcc $(FLAGS) $(FILES) -o tsh -lreadline
-tsh.o: shell.c commande.c tsh.c tar_c.c
+tsh.o: shell.c shell.h commande.c commande.h tsh.c
 	gcc -c $(FLAGS) tsh.c -o tsh.o
-commande.o: shell.c commande.c tar_c.c
+commande.o: shell.c commande.c tar_c.c commande.h tar_cmd.c tar_cmd.h
 	gcc -c $(FLAGS) commande.c -o commande.o
-shell.o: shell.c commande.c tar_c.c
+shell.o: shell.c shell.h commande.c commande.h
 	gcc -c $(FLAGS) shell.c -o shell.o
-tar_c.o: tar_c.c
+tar_c.o: tar_c.c tar_c.h
 	gcc -c $(FLAGS) tar_c.c -o tar_c.o
+tar_cmd.o: tar_cmd.c tar_cmd.h tar_c.c tar_c.h commande.c commande.h
+	gcc -c $(FLAGS) tar_cmd.c -o tar_cmd.o
 clean:
-	rm tsh *.o
+	rm tsh $(FILES)

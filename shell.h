@@ -23,5 +23,4 @@ char *decoup_nom_fich(char *chemin,int *index);
 char *simplifie_chemin(char *chemin);
 char **recuperer_commande(int * taille_commande);
 int traitement_commande(char**liste_argument,int nb_arg_cmd,shell*tsh);
-int traitement_commandeTar(char **liste_argument,int nb_arg,shell *tsh);
 #endif

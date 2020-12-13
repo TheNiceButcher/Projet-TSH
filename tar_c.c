@@ -28,10 +28,6 @@ char **list_fich(char *tar)
 	int taille_archive_max = 20;
 	int taille_archive = 0;
 	char **liste_fichier = malloc(taille_archive_max*sizeof(char*));
-	for(int i = 0;i < taille_archive_max;i++)
-	{
-		liste_fichier[i] = malloc(1024);
-	}
 	int fd,lus;
 	struct posix_header entete;
 	fd = open(tar,O_RDONLY);
@@ -47,16 +43,13 @@ char **list_fich(char *tar)
 		{
 			taille_archive_max *= 2;
 			liste_fichier = realloc(liste_fichier,taille_archive_max*sizeof(char*));
-			for (int f = taille_archive; f < taille_archive_max;f++)
-			{
-				liste_fichier[f] = malloc(1024);
-			}
 		}
 		//Si nous sommes dans une entete et que nous sommes pas dans un entete de fin de fichier
 		if (entete.name[0] != '\0' && check_checksum(&entete))
 		{
 			//On rajoute le nom dans la liste
-			strcpy(liste_fichier[taille_archive],entete.name);
+			liste_fichier[taille_archive] = malloc(strlen(entete.name));
+			sprintf(liste_fichier[taille_archive],"%s",entete.name);
 			if (entete.typeflag != '5')
 			{
 				unsigned long taille;
@@ -267,7 +260,6 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 		printf("rm %s : fichier ou dossier introuvable\n",file);
 	close(fd);
 	close(fd_copie);
-	//unlink(".supprimer_fichier_tar");
 	return 0;
 }
 /*
