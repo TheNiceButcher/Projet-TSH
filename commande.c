@@ -58,7 +58,7 @@ Renvoie 1 si c'est le cas, 0 sinon
 */
 int estCommandeTar(char *mot_commande,shell * tsh)
 {
-	for (int i = 0; i < 9;i++)
+	for (int i = 0; i < tsh->nb_cmds;i++)
 	{
 		if (strcmp(mot_commande,tsh -> cmd_tarballs[i])==0)
 			return 1;
@@ -274,7 +274,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	repertoire courant*/
 	if ((nb_arg_cmd - nb_options == 1) && strcmp(nom_commande,"ls")==0)
 	{
-		ls(tsh->repertoire_courant,NULL,tsh);
+		ls(tsh->repertoire_courant,options,tsh);
 		return 0;
 	}
 	if(nb_arg_cmd==1)
