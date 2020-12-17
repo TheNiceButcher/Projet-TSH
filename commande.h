@@ -8,4 +8,6 @@ int cheminValide(char *path,char * cmd);
 int recherche_fich_tar(char *chemin);
 char **recherche_option(char **liste_argument,int nb_arg_cmd);
 int traitement_commandeTar(char **liste_argument,int nb_arg,shell *tsh);
+int redirection_input(char **liste_argument, int nb_arg_cmd, shell *tsh);
+int redirection_error(char **liste_argument, int nb_arg_cmd, shell *tsh);
 #endif

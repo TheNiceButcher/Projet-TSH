@@ -463,5 +463,124 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	return 0;
 }*/
 
+int redirection_input(char **liste_argument, int nb_arg_cmd, shell *tsh)
+{
+	int in, out;
+	char *file = malloc(1024);
+	char *file_to = malloc(1024);
+	strcat(file, tsh->repertoire_courant);
+	strcat(file, "/");
+	strcat(file, liste_argument[nb_arg_cmd-1]);
+	if(strcmp(liste_argument[1], "/")){
+
+	}else{
+		strcat(file_to, tsh->repertoire_courant);
+		strcat(file_to, "/");
+	}
+	out = open(file, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
+
+	if (strcmp(liste_argument[0], "cat") == 0)
+	{
+		in = open(liste_argument[1], O_RDONLY);
+		int fils = fork();
+		if (fils == -1)
+		{
+			perror("fork redirection");
+			return 1;
+		}
+		if (fils == 0)
+		{
+			dup2(in, 0);
+			dup2(out, 1);
+			if (contexteTarball(file_to))
+			{
+				cat(liste_argument, nb_arg_cmd - 2, tsh);
+			}
+			else
+			{
+				execlp(liste_argument[0], liste_argument[0], liste_argument[1], NULL);
+			}
+			close(out);
+			exit(0);
+		}
+		wait(NULL);
+	}else if (strcmp(liste_argument[0], "echo") == 0){
+		char *write = malloc(1024);
+		for (int i = 1; i < nb_arg_cmd - 2; i++){
+			strcat(write, liste_argument[i]);
+			strcat(write, " ");
+		}
+		write[strlen(write) - 1] = '\0';
+		int fils = fork();
+		if (fils == -1){
+			perror("fork redirection");
+			return 1;
+		}if (fils == 0)
+		{
+			dup2(out, 1);
+			close(out);
+			execlp(liste_argument[0], liste_argument[0], write, NULL);
+			exit(0);
+		}
+		wait(NULL);
+	}else if (strcmp(liste_argument[0], "ls") == 0){
+		int fils = fork();
+		if (fils == -1){
+			perror("fork redirection");
+			return 1;
+		}
+		if (fils == 0){
+			dup2(out, 1);
+			close(out);
+			execlp(liste_argument[0], liste_argument[0], NULL);
+			exit(0);
+		}
+		wait(NULL);
+	}else{
+		perror("A faire\n");
+	}
+	return 1;
+}
+
+int redirection_error(char **liste_argument, int nb_arg_cmd, shell *tsh)
+{
+	int in, out;
+
+	in = open(liste_argument[1], O_RDONLY);
+
+	if (in == -1){
+		out = open(liste_argument[nb_arg_cmd - 1], O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
+		int fils = fork();
+		if (fils == -1)
+		{
+			perror("fork redirection");
+			return 1;
+		}
+		if (fils == 0)
+		{
+			dup2(out, 1);
+			close(in);
+			close(out);
+			printf("%s: %s: No such file or directory\n", liste_argument[0], liste_argument[1]);
+			exit(0);
+		}
+		wait(NULL);
+	}else{
+		int fils = fork();
+		if (fils == -1){
+			perror("fork redirection");
+			return 1;
+		}if (fils == 0)
+		{
+			close(in);
+			execlp(liste_argument[0], liste_argument[0], liste_argument[1], NULL);
+			exit(0);
+		}
+		wait(NULL);
+
+	}
+	return 0;
+}
+
 
 #endif
