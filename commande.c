@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <errno.h>
 #include "shell.h"
 #include "commande.h"
 #include "tar_c.h"
@@ -96,6 +97,58 @@ char **recherche_option(char **liste_argument,int nb_arg_cmd)
 	return result;
 }
 /*
+Verifie si l'option en argument est presente dans les options valides
+Renvoie 1 si l'option est presente, 0 sinon
+*/
+int est_une_option(char *options,char option)
+{
+	int i = 1;
+	while (options[i] != '\0')
+	{
+		if (options[i] == option)
+		{
+			return 1;
+		}
+		i++;
+	}
+	return 0;
+}
+/*
+Verifie si les options en argument sont prises en charge pour la commande pour
+les tar.
+Renvoie 1 si les options sont prises en charge, 0 sinon
+*/
+int a_bonnes_options(char *nom_commande,char **options,shell * tsh)
+{
+	if (options == NULL)
+		return 1;
+	//On explore les commandes pour trouver celle qu'on veut
+	for (int i = 0; i < tsh->nb_cmds; i++)
+	{
+		//On trouve la commande
+		if (strcmp(nom_commande,tsh->cmd_tarballs[i])==0)
+		{
+			int j = 1;
+			//On verifie pour chaque option si elle est presente
+			while(options[j] != NULL)
+			{
+				int h = 0;
+				while(options[j][h] != '\0')
+				{
+					if (est_une_option(tsh->option[i],options[j][h])==0)
+					{
+						return 0;
+					}
+					h++;
+				}
+				j++;
+			}
+			return 1;
+		}
+	}
+	return -1;
+}
+/*
 Recherche un fichier .tar dans un chemin et retourne l'index de la fin du fichier.tar
 dans le chemin
 */
@@ -123,6 +176,10 @@ Renvoie si le fichier en argument est bien present dans le fichier tar.
 int presentDansTar(char *tar,char *file)
 {
 	char ** list_file = list_fich(tar);
+	if (list_file == NULL)
+	{
+		return 0;
+	}
 	//On verifie si le fichier est dans le tar mais n'a pas d'entete a lui
 	char *file2 = malloc(strlen(file) + 1);
 	if (file[strlen(file)-1] != '/')
@@ -143,106 +200,112 @@ int presentDansTar(char *tar,char *file)
 	return 0;
 }
 /*
+Affiche l'erreur correspondant a l'invalidite du chemin, à savoir qu'il y a
+un fichier inexistant dans ce chemin
+*/
+void erreur_chemin_non_valide(char * path, char * cmd)
+{
+	char * error = malloc(strlen(path)+strlen(cmd)+
+	strlen("Aucun fichier ou de repertoire de ce nom\n")+3);
+	sprintf(error,"%s %s: Aucun fichier ou repertoire de ce nom\n",cmd,path);
+	write(STDERR_FILENO,error,strlen(error));
+	free(error);
+
+}
+/*
 Verifie si le chemin en argument est valide, c'est à dire si le fichier existe
 pour un chemin sans tar et si le fichier tar le plus "profond" dans lechemin existe.
-Renvoie 1 s'il existe, 0 sinon.
+Renvoie 1 s'il existe, 0 sinon. On renvoie -1 si stat renvoie une erreur autre
+que la non existence du fichier
 */
 int cheminValide(char *path,char * cmd)
 {
-	struct stat st;
-	char * file = malloc(strlen(path)+1);
-	sprintf(file,"%s/",path);
-	file[strlen(path)] = '\0';
 	//Si le chemin est dans un tar
 	if(contexteTarball(path))
 	{
-		int i = recherche_fich_tar(path);
-		strncpy(file,path,i);
-		file[i] = '\0';
-		if(file[i-1]=='/')
-			file[i-1] = '\0';
-		int b_f = 0;
-
-		char * lo = decoup_nom_fich(path, &b_f);
-		while (lo != NULL)
+		int index_path = 0;
+		char * path_bis = malloc(strlen(path));
+		char * fich = decoup_nom_fich(path,&index_path);
+		//On part a la recherche des ..
+		while (fich != NULL)
 		{
-			while (lo != NULL && strcmp(lo,".."))
-			{
-				lo = decoup_nom_fich(path,&b_f);
-			}
-			if (lo == NULL)
+			//On s'arrete des qu'on rencontre ..
+			if (strcmp(fich,"..")==0)
 				break;
-			//Les .. se situent apres le fichier tar
-			if(b_f > i)
-			{
-				//On retire 4 à l'index, pour retrouver le dernier fichier du chemin
-				char *maman = malloc((b_f-4) - i + 1);
-				strncpy(maman,&path[i],(b_f-4) - i + 1);
-				maman[(b_f-4) - i + 1] = '\0';
-				//Si le fichier n'est pas present dans le tar, on renvoie 0
-				if(presentDansTar(file,maman)==0)
-				{
-					char *error = malloc(strlen(path)+strlen(cmd)+3 +strlen("Aucun fichier de ce nom\n"));
-					sprintf(error,"%s %s : Aucun fichier de ce nom\n",cmd,path);
-					write(STDERR_FILENO,error,strlen(error));
-					free(maman);
-					free(error);
-					free(file);
-					return 0;
-				}
-				//Sinon, on verifie la suite du chemin
-				while (b_f < strlen(path))
-				{
-					lo = decoup_nom_fich(path,&b_f);
-					if (strcmp(lo,".."))
-						break;
-				}
-				if (b_f == strlen(path))
-					return 1;
-				char *bat = malloc(strlen(path));
-				strncpy(bat,path,b_f);
-				sprintf(bat,"%s",simplifie_chemin(bat));
-				if (cheminValide(bat,cmd))
-				{
-
-				}
-			}
-			//Les .. se situent avant le fichier tar
-			else
-			{
-				//On verifie si le chemin est valide
-				char * new_path = malloc(strlen(path));
-				strncpy(new_path,path,b_f);
-				if (cheminValide(new_path,cmd))
-				{
-
-				}
-				else
-				{
-					char *error = malloc(strlen(path)+strlen(cmd)+3 +strlen("Aucun fichier de ce nom\n"));
-					sprintf(error,"%s %s : Aucun fichier de ce nom\n",cmd,path);
-					write(STDERR_FILENO,error,strlen(error));
-					free(error);
-					free(file);
-					return 0;
-				}
-			}
-
-
+			sprintf(path_bis,"%s%s/",path_bis,fich);
+			fich = decoup_nom_fich(path,&index_path);
 		}
+		//On enleve le '/' pour verifier son existence
+		path_bis[strlen(path_bis)-1] = '\0';
+		if (contexteTarball(path_bis))
+		{
+			int index_tar = recherche_fich_tar(path_bis);
+			char * tar = malloc(index_tar);
+			strncpy(tar,path_bis,index_tar);
+			struct stat st;
+			//On verifie si le .tar existe
+			if (stat(tar,&st)==-1)
+			{
+				return 0;
+			}
+			//On verifie si la suite du chemin est present dans le tar
+			char * file = malloc(strlen(path_bis)-index_tar);
+			sprintf(file,"%s",&path_bis[index_tar]);
+
+			//Si la suite n'est pas present dans le tar, le chemin n'est pas valide
+			if (strcmp(file,"") != 0 && presentDansTar(tar,file)==0)
+			{
+				return 0;
+			}
+		}
+		else
+		{
+			//N'etant pas dans un tar, on appelle directement cheminValide
+			int retour = cheminValide(path_bis,cmd);
+			if (retour <= 0)
+			{
+				return retour;
+			}
+		}
+		//On arrive au bout du chemin
+		if (fich == NULL)
+		{
+			return 1;
+		}
+		//Le sous chemin path_bis est donc valide
+		sprintf(path_bis,"%s/..",path_bis);
+		fich = decoup_nom_fich(path,&index_path);
+		while (fich != NULL)
+		{
+			if (strcmp(fich,".."))
+				break;
+			sprintf(path_bis,"%s/..",path_bis);
+			fich = decoup_nom_fich(path,&index_path);
+		}
+		if (fich == NULL)
+			return 1;
+		sprintf(path_bis,"%s%s",simplifie_chemin(path_bis),&path[index_path-strlen(fich)]);
+		return cheminValide(path_bis,cmd);
 	}
-	if (stat(file,&st)==-1)
+	else
 	{
-		char *error = malloc(strlen(path)+strlen(cmd)+3);
-		sprintf(error,"%s %s",cmd,path);
-		perror(error);
-		free(error);
-		free(file);
-		return 0;
+		struct stat st;
+		if (stat(path,&st)==-1)
+		{
+			//On verifie la valeur de errno
+			if (errno != ENOENT)
+			{
+				perror("Stat cheminValide");
+				return -1;
+			}
+			return 0;
+		}
+		return 1;
 	}
-	free(file);
-	return 1;
 }
+/*
+Gere le traitement d'une commande pouvant etre executee sur un tar
+*/
 int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 {
 	char *nom_commande = malloc(10);
@@ -263,8 +326,10 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		free(nom_commande);
 		return 0;
 	}
+	//Sinon on recherche les differentes options
 	char **options = recherche_option(liste_argument,nb_arg_cmd);
 	int nb_options = 0;
+	//Calcul nombre d'options
 	if (options)
 	{
 		while(options[nb_options] != NULL)
@@ -277,6 +342,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		ls(tsh->repertoire_courant,options,tsh);
 		return 0;
 	}
+	//Sinon, si la commande n'a pas d'argument, on renvoie une erreur
 	if(nb_arg_cmd==1)
 	{
 		char * error = malloc(strlen(nom_commande)+strlen("Arguments manquants\n"));
@@ -354,8 +420,77 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	}
 	for (int i = 1; i < nb_arg_cmd; i++)
 	{
-		if(liste_argument[i][0]=='-')
+		//Si l'argument est une option, on passe au prochain
+		if(liste_argument[i][0] == '-')
 			continue;
+
+		char * argument_courant = malloc(strlen(liste_argument[i])+
+			strlen(tsh->repertoire_courant)+2);
+		sprintf(argument_courant,"%s/%s",tsh->repertoire_courant,liste_argument[i]);
+		//Si la commande n'est pas mv ou cp, on verifie si l'argument est dans un tar
+		if (strcmp(nom_commande,"mv") && strcmp(nom_commande,"cp"))
+		{
+			//Si ce n'est pas le cas, on execute la commande via exec
+			if (contexteTarball(liste_argument[i])==0)
+			{
+				if (cheminValide(liste_argument[i],nom_commande)==0)
+				{
+					erreur_chemin_non_valide(liste_argument[i],nom_commande);
+					continue;
+				}
+				int fils = fork();
+				switch (fils) {
+					case -1:
+						perror("fork traitement_commande");
+						break;
+					case 0:
+						execlp(nom_commande,nom_commande,liste_argument[i],options,NULL);
+						exit(0);
+						break;
+					default :
+						wait(NULL);
+				}
+				continue;
+			}
+			//Contexte Tar
+			else
+			{
+				//On verifie l'existence du fichier tar si la commande n'est pas mkdir
+				if (strcmp(nom_commande,"mkdir"))
+				{
+					//On verifie si le chemin est valide
+					if (cheminValide(argument_courant,nom_commande)==0)
+					{
+						erreur_chemin_non_valide(liste_argument[i],nom_commande);
+					}
+					//Si c'est le cas, on simplifie le chemin
+					sprintf(argument_courant,"%s",simplifie_chemin(argument_courant));
+					//On enleve le '/'
+					argument_courant[strlen(argument_courant)-1] = '\0';
+					//On verifie si le chemin est encore dans un tar
+					if (contexteTarball(argument_courant) == 0)
+					{
+						//S'il n'est pas dans un tar, on appelle exec
+						int fils = fork();
+						switch (fils) {
+							case -1:
+								perror("fork traitement_commande");
+								break;
+							case 0:
+								execlp(nom_commande,nom_commande,argument_courant,options,NULL);
+								exit(0);
+								break;
+							default :
+								wait(NULL);
+						}
+						continue;
+					}
+					//Sinon on appelle la fonction auxiliaire correspondante
+				}
+			}
+		}
+
+
 		if (strcmp(nom_commande,"mv")==0)
 			mv(liste_argument[i],destination,options,tsh);
 		if (strcmp(nom_commande,"cp")==0)
@@ -494,7 +629,7 @@ int redirection_input(char **liste_argument, int nb_arg_cmd, shell *tsh)
 			dup2(out, 1);
 			if (contexteTarball(file_to))
 			{
-				cat(liste_argument, nb_arg_cmd - 2, tsh);
+				//cat(liste_argument, nb_arg_cmd - 2, tsh);
 			}
 			else
 			{
