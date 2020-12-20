@@ -356,7 +356,7 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 }
 int pwd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 {
-	printf("%s\n",tsh->repertoire_courant);
+	write(STDOUT_FILENO,tsh->repertoire_courant,strlen(tsh->repertoire_courant));
 	return 0;
 }
 int cp(char *file,char * destination,char ** options,shell *tsh)
@@ -370,6 +370,7 @@ int rm(char *file, char **options, shell *tsh)
 	sprintf(simple,"%s/%s",tsh->repertoire_courant,file);
 	if (cheminValide(simple,"rm")==0)
 	{
+
 		return 1;
 	}
 	char * simple2 = simplifie_chemin(simple);
@@ -550,13 +551,9 @@ int rmdir_tar(char *file, char **options,shell *tsh)
 }
 int mv(char *file,char *destination,char **options,shell *tsh)
 {
-	    /* struct stat stat_src;
+	   /* struct stat stat_src;
 	     char *src_final, *dest_final;
 	     //controler le nombre d'arguments
-	    if (nb_arg_cmd!= 3) {
-	      printf("erreur nombre d'arguments incorrect\n");
-	      exit(EXIT_FAILURE);
-	    }
 	     //copier source dans la variable src
 	    	char * src = malloc(1024);
 			strcpy(src,tsh->repertoire_courant);
