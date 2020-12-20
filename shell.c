@@ -38,6 +38,19 @@ shell creation_shell(char **cmd_tarballs,char **option)
 		tsh.nb_cmds--;
 	return tsh;
 }
+void init_chemin_explorer(char *path)
+{
+	chemin_a_explorer = malloc(strlen(path));
+	chemin_length = strlen(path);
+	index_chemin_a_explorer = 0;
+	sprintf(chemin_a_explorer,"%s",path);
+}
+void free_chemin_explorer()
+{
+	free(chemin_a_explorer);
+	chemin_length = 0;
+	index_chemin_a_explorer = 0;
+}
 /*
 Fonction qui prend en argument la commande en entier et une adresse de son index
 courant.
@@ -95,16 +108,99 @@ char *decoup_nom_fich(char *chemin,int *index)
 	fichier[lg_mot] = '\0';
 	return fichier;
 }
-/*
-Simplifie le chemin absolu en enlevant les .. et . contenu dans le chemin en argument
-*/
+int decoup_fich(char * path)
+{
+	while (index_chemin_a_explorer < chemin_length)
+	{
+		if (chemin_a_explorer[index_chemin_a_explorer]=='/')
+		{
+			break;
+		}
+		index_chemin_a_explorer++;
+	}
+
+	if (chemin_length <= index_chemin_a_explorer)
+	{
+		/*if (strlen(chemin_a_explorer) < index_chemin_a_explorer)
+		{
+			index_chemin_a_explorer--;
+		}*/
+		return index_chemin_a_explorer;
+	}
+	index_chemin_a_explorer += 1;
+	return index_chemin_a_explorer;
+}
 char *simplifie_chemin(char *chemin)
 {
 	if (chemin == NULL)
 		return NULL;
 	else
 	{
-		char *nvx_chemin = malloc(1024);
+		//Initialisation de chemin_a_explorer
+		chemin_a_explorer = malloc(strlen(chemin)+1);
+		sprintf(chemin_a_explorer,"%s",chemin);
+		char * simplified_path = malloc(strlen(chemin)+1);
+		chemin_length = strlen(chemin);
+		index_chemin_a_explorer = 0;
+		int index_simple = 0;
+		int index_prec = 0;
+		decoup_fich(chemin);
+		while(index_prec < chemin_length)
+		{
+			char * fich = malloc(index_chemin_a_explorer-index_prec+1);
+			memset(fich,0,index_chemin_a_explorer-index_prec+1);
+			strncpy(fich,&chemin_a_explorer[index_prec],index_chemin_a_explorer-index_prec);
+			//Présence .
+			if (strcmp(fich,".") == 0)
+			{
+				index_prec = index_chemin_a_explorer;
+				decoup_fich(chemin);
+				free(fich);
+				continue;
+			}
+			//Présence ..
+			if ((strncmp(fich,"..",2) == 0))
+			{
+				if (index_simple >= index_prec)
+					index_simple = index_prec;
+				index_simple--;
+				index_simple--;
+				while (chemin_a_explorer[index_simple] != '/' && index_simple > 0)
+				{
+					index_simple--;
+				}
+				index_simple++;
+				simplified_path[index_simple] = '\0';
+				index_prec = index_chemin_a_explorer;
+				decoup_fich(chemin);
+				free(fich);
+				continue;
+			}
+			//Dossier autre
+			sprintf(&simplified_path[index_simple],"%s",fich);
+			index_simple += strlen(fich);
+			index_prec = index_chemin_a_explorer;
+			decoup_fich(chemin);
+			free(fich);
+
+		}
+		free(chemin_a_explorer);
+		index_chemin_a_explorer = 0;
+		chemin_length = 0;
+		simplified_path[index_simple] = '\0';
+		return simplified_path;
+	}
+}
+/*
+Simplifie le chemin absolu en enlevant les .. et . contenu dans le chemin en argument
+*/
+/*char *simplifie_chemin(char *chemin)
+{
+	if (chemin == NULL)
+		return NULL;
+	else
+	{
+		char *nvx_chemin = malloc(strlen(chemin));
 		int i = 0;
 		int index = 0;
 		char *name = decoup_nom_fich(chemin,&index);
@@ -161,7 +257,7 @@ char *simplifie_chemin(char *chemin)
 		}
 		return nvx_chemin;
 	}
-}
+}*/
 /*
 Recupere la commande de l'utilisateur, renvoie la liste des arguments (mot != " ")
 et Stocke son nombre dans l'adresse en argument
@@ -213,11 +309,12 @@ Analyse la ligne de commande et traite la commande
 int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 {
 	int cmds=0;//nombre de commande entre pipe
-	char *nom_commande = malloc(1024);
+	char *nom_commande = malloc(strlen(liste_argument[0])+1);
+	nom_commande[strlen(liste_argument[0])] = '\0';
 	//On verifie si la commande est nulle / vide
 	//Si oui on revient a la ligne
 	if (liste_argument[0] == NULL)
-		printf("\n");
+		write(STDOUT_FILENO,"\n",strlen("\n"));
 	//Sinon on traite la commande
 	else
 	{
@@ -225,7 +322,7 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		//Execution de la commande "exit" et depart du shell
 		if(memmem(nom_commande,sizeof("exit"),"exit",sizeof("exit")))
 		{
-			printf("Au revoir\n");
+			write(STDOUT_FILENO,"Au revoir\n",strlen("Au revoir\n"));
 			tsh->quit = 1;
 		}
 		else

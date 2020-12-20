@@ -3,41 +3,25 @@ int ls(char *file, char **options,shell *tsh)
 {
 	if (options)
 	{
-			//OPtion -l pour un fichier dans un tar (a faire)
-		if (contexteTarball(file))
-		{
-			printf("%s:\n",file);
-
-		}
-		//Option -l pour un fichier n'etant pas dans un tar
-		else
-		{
-			//N'etant pas dans un .tar, un appel à execlp suffit
-			if (fork()==0)
-			{
-				//printf("%s:\n",file);
-				execlp("ls","ls","-l",file,NULL);
-				exit(0);
-			}
-			wait(NULL);
-		}
+		//Option -l pour un fichier dans un tar (a faire)
+		printf("%s:\n",file);
 	}
 	//Sans l'option -l
 	else
 	{
-		char *fichier = malloc(strlen(tsh->repertoire_courant) + strlen(file) + 2);
+		/*char *fichier = malloc(strlen(tsh->repertoire_courant) + strlen(file) + 2);
 		sprintf(fichier,"%s/%s",tsh->repertoire_courant,file);
 		int dossier = (file[strlen(file)-1]=='/');
 		if (dossier==0)
 		{
 			strcat(fichier,"/");
-		}
-		char *simplified_path = malloc(strlen(fichier));
-		simplified_path = simplifie_chemin(fichier);
+		}*/
+		char *simplified_path = malloc(strlen(file));
+		sprintf(simplified_path, "%s", file);
 		//Fichier dans un tarball
 		if (contexteTarball(simplified_path))
 		{
-			simplified_path[strlen(simplified_path)-1] = '\0';
+			//simplified_path[strlen(simplified_path)-1] = '\0';
 			if (simplified_path[strlen(simplified_path)-1] == '/')
 			{
 				simplified_path[(strlen(simplified_path))-1] = '\0';
@@ -54,7 +38,7 @@ int ls(char *file, char **options,shell *tsh)
 					write(STDERR_FILENO,error,strlen(error));
 					free(error);
 					free(simplified_path);
-					free(fichier);
+					//free(fichier);
 					return 1;
 				}
 				else
@@ -213,25 +197,8 @@ int ls(char *file, char **options,shell *tsh)
 			}
 
 		}
-		//Fichier n'etant pas dans un .tar
-		else
-		{
-			int fils = fork();
-			if (fils == -1)
-			{
-				perror("fork ls");
-				exit(1);
-			}
-			if(fils==0)
-			{
-				//printf("\n%s:\n",file);
-				execlp("ls","ls",file,NULL);
-				exit(0);
-			}
-			wait(NULL);
-		}
 		free(simplified_path);
-		free(fichier);
+		//free(fichier);
 	}
 	return 0;
 }
@@ -239,7 +206,9 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 {
 	if (nb_arg_cmd == 2)
 	{
-		char * nv_repr_courant = malloc(strlen(liste_argument[1])+2);
+		char * nv_repr_courant = malloc(strlen(liste_argument[1])+
+		strlen(tsh->repertoire_courant)+2);
+		//memset(nv_repr_courant,0,)
 		//Prise en charge des chemins absolus depuis la racine
 		if (liste_argument[1][0] == '/')
 		{
@@ -247,10 +216,11 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		}
 		else
 		{
-			strcpy(nv_repr_courant,tsh->repertoire_courant);
+			sprintf(nv_repr_courant,"%s",tsh->repertoire_courant);
+			//strcpy(nv_repr_courant,tsh->repertoire_courant);
 			if(tsh->repertoire_courant[strlen(tsh->repertoire_courant)-1] != '/')
-				strcat(nv_repr_courant,"/");
-			strcat(nv_repr_courant,liste_argument[1]);
+				sprintf(nv_repr_courant,"%s/",nv_repr_courant);
+			sprintf(nv_repr_courant,"%s%s",nv_repr_courant,liste_argument[1]);
 		}
 		if (nv_repr_courant[strlen(nv_repr_courant)-1] != '/')
 			strcat(nv_repr_courant,"/");
@@ -320,7 +290,6 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		//Sinon, on change directement avec chdir
 		else
 		{
-
 			if (nv_repr_courant[strlen(nv_repr_courant) - 1] != '/')
 			{
 				int i = strlen(nv_repr_courant);
@@ -338,6 +307,7 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			}
 			else
 			{
+				//sprintf(nv_repr_courant,"%s",simplifie_chemin(nv_repr_courant));
 				strcpy(nv_repr_courant,simplifie_chemin(nv_repr_courant));
 				strcpy(tsh->repertoire_courant,nv_repr_courant);
 				tsh->tarball = 0;
@@ -356,7 +326,10 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 }
 int pwd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 {
-	write(STDOUT_FILENO,tsh->repertoire_courant,strlen(tsh->repertoire_courant));
+	char * repr = malloc(strlen(tsh->repertoire_courant)+ 2);
+	sprintf(repr, "%s\n",tsh->repertoire_courant);
+	write(STDOUT_FILENO,repr,strlen(repr));
+	free(repr);
 	return 0;
 }
 int cp(char *file,char * destination,char ** options,shell *tsh)
@@ -368,19 +341,13 @@ int rm(char *file, char **options, shell *tsh)
 {
 	char * simple = malloc(strlen(file) + strlen(tsh->repertoire_courant)+3);
 	sprintf(simple,"%s/%s",tsh->repertoire_courant,file);
-	if (cheminValide(simple,"rm")==0)
+	sprintf(simple,"%s",simplifie_chemin(simple));
+	if (contexteTarball(simple))
 	{
 
-		return 1;
-	}
-	char * simple2 = simplifie_chemin(simple);
-	//Fichier dans un .tar
-	if (contexteTarball(simple2))
-	{
-
-		int index = recherche_fich_tar(simple2);
-		char *tar = malloc(strlen(simple2));
-		strncpy(tar,simple2,index);
+		int index = recherche_fich_tar(simple);
+		char *tar = malloc(strlen(simple));
+		strncpy(tar,simple,index);
 		//On enleve le / du tar
 		if (tar[index-1]=='/')
 		{
@@ -390,26 +357,26 @@ int rm(char *file, char **options, shell *tsh)
 		//On verifie le fichier tar existe
 		if(stat(tar,&st)==-1)
 		{
-			char *error = malloc(strlen(simple2)+strlen("rm  : introuvable\n"));
-			sprintf(error,"rm %s : introuvable\n",simple2);
+			char *error = malloc(strlen(simple)+strlen("rm  : introuvable\n"));
+			sprintf(error,"rm %s : introuvable\n",simple);
 			write(STDERR_FILENO,error,strlen(error));
 			free(error);
 			free(tar);
-			free(simple2);
+			//free(simple2);
 			free(simple);
 			return 1;
 		}
 		//Si on doit supprimer un fichier  .tar
-		if (index == strlen(simple2))
+		if (index == strlen(simple))
 		{
 			//Considerant les .tar comme des dossiers, on attend l'option pour le supprimer
 			if (options)
 			{
-				simple2[strlen(simple2)-1] = '\0';
-				if(unlink(simple2)==-1)
+				simple[strlen(simple)-1] = '\0';
+				if(unlink(simple)==-1)
 				{
-					char *error = malloc(strlen(simple2)+strlen("rm  :"));
-					sprintf(error,"rm %s :",simple2);
+					char *error = malloc(strlen(simple)+strlen("rm  :"));
+					sprintf(error,"rm %s :",simple);
 					perror(error);
 					free(error);
 				}
@@ -427,8 +394,8 @@ int rm(char *file, char **options, shell *tsh)
 		//Suppression dans un .tar
 		else
 		{
-			char *file_to_rm = malloc(strlen(simple2));
-			strcpy(file_to_rm,&simple2[index]);
+			char *file_to_rm = malloc(strlen(simple));
+			strcpy(file_to_rm,&simple[index]);
 			if(tar[strlen(tar)-1]=='/')
 				tar[strlen(tar)-1] = '\0';
 			supprimer_fichier_tar(tar,file_to_rm,0);
@@ -436,29 +403,8 @@ int rm(char *file, char **options, shell *tsh)
 		}
 		free(tar);
 	}
-	else
-	{
-		int fils = fork();
-		if (fils == -1)
-		{
-			perror("fork rm");
-			free(simple);
-			free(simple2);
-			exit(1);
-		}
-		if (fils==0)
-		{
-			if (options)
-				execlp("rm","rm","-r",file,NULL);
-			else
-				execlp("rm","rm",file,NULL);
-			exit(0);
-		}
-		else
-			wait(NULL);
-	}
 	free(simple);
-	free(simple2);
+	//free(simple2);
 	return 0;
 }
 int mkdir_tar(char *file, char **options,shell *tsh)
@@ -501,52 +447,13 @@ int mkdir_tar(char *file, char **options,shell *tsh)
 			free(repr_to_create);
 		}
 	}
-	//En dehors d'un tar
-	else
-	{
-		int fils = fork();
-		if (fils == -1)
-		{
-			perror("fork mkdir");
-			exit(1);
-		}
-		if (fils == 0)
-		{
-			execlp("mkdir","mkdir",file,NULL);
-			exit(0);
-		}
-		wait(NULL);
-	}
 	return 0;
 }
 int rmdir_tar(char *file, char **options,shell *tsh)
 {
 	char *simple_file = malloc(strlen(file)+strlen(tsh->repertoire_courant)+3);
 	sprintf(simple_file,"%s/%s",tsh->repertoire_courant,file);
-	if (cheminValide(simple_file,"rmdir"))
-	{
-		sprintf(simple_file,"%s",simplifie_chemin(simple_file));
-		if (contexteTarball(simple_file))
-		{
 
-		}
-		else
-		{
-			int fils = fork();
-			if (fils == -1)
-			{
-				perror("rmdir fork ");
-				free(simple_file);
-				exit(1);
-			}
-			if (fils == 0)
-			{
-				execlp("rmdir","rmdir",simple_file,NULL);
-				exit(0);
-			}
-			wait(NULL);
-		}
-	}
 	return 0;
 }
 int mv(char *file,char *destination,char **options,shell *tsh)
@@ -906,22 +813,6 @@ int cat(char *file, char **options,shell *tsh)
 				affiche_fichier_tar(tar,file_to_find);
 			}
 		}
-	}
-	//Fichier en dehors d'un tar
-	else
-	{
-		int fils = fork();
-		if (fils == -1)
-		{
-			perror("fork cat");
-			exit(1);
-		}
-		if (fils == 0)
-		{
-			execlp("cat","cat",file,NULL);
-			exit(0);
-		}
-		wait(NULL);
 	}
 	return 0;
 }
