@@ -153,28 +153,9 @@ char a_bonnes_options(char *nom_commande,char **options,shell * tsh)
 Recherche un fichier .tar dans un chemin et retourne l'index de la fin du fichier.tar
 dans le chemin
 */
+
 int recherche_fich_tar(char *chemin)
 {
-	char *tar = malloc(strlen(chemin)+1);
-	int index = 0;
-	tar = decoup_nom_fich(chemin,&index);
-	while (tar != NULL)
-	{
-		if (strcmp(&tar[strlen(tar)-4],".tar")==0)
-		{
-			break;
-		}
-		tar = decoup_nom_fich(chemin,&index);
-	}
-	free(tar);
-	return index;
-}
-int recherche_fich_tar_aux(char *chemin)
-{
-	/*chemin_length = strlen(chemin);
-	chemin_a_explorer = malloc(strlen(chemin));
-	index_chemin_a_explorer = 0;
-	sprintf(chemin_a_explorer,"%s",chemin);*/
 	init_chemin_explorer(chemin);
 	decoup_fich(chemin);
 	int index_prec = 0;
@@ -195,6 +176,7 @@ int recherche_fich_tar_aux(char *chemin)
 		index_prec = index_chemin_a_explorer;
 		decoup_fich("");
 	}
+	free_chemin_explorer();
 	return -1;
 }
 /*
@@ -254,7 +236,7 @@ int cheminValide(char *path,char * cmd)
 	{
 		int index_path = 0;
 		init_chemin_explorer(path);
-		char * path_bis = malloc(strlen(path));
+		char * path_bis = malloc(strlen(path)+3);
 		decoup_fich("path,&index_path");
 		//On part a la recherche des ..
 		while (index_path < chemin_length)
@@ -281,6 +263,9 @@ int cheminValide(char *path,char * cmd)
 			int index_tar = recherche_fich_tar(path_bis);
 			char * tar = malloc(index_tar);
 			strncpy(tar,path_bis,index_tar);
+			tar[index_tar] = '\0';
+			if (tar[index_tar-1]=='/')
+				tar[index_tar-1] = '\0';
 			struct stat st;
 			//On verifie si le .tar existe
 			if (stat(tar,&st)==-1)
@@ -295,6 +280,7 @@ int cheminValide(char *path,char * cmd)
 			if (strcmp(file,"") != 0 && presentDansTar(tar,file)==0)
 			{
 				free(file);
+				free(tar);
 				free_chemin_explorer();
 				return 0;
 			}
@@ -434,6 +420,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	}
 	/*Sinon, si la commande est cp ou mv, on verifie si la destination est valide
 	ou non*/
+	int index_destination = 0;
 	if (strcmp(nom_commande,"cp")==0 || strcmp(nom_commande,"mv")==0)
 	{
 		//On trouve le fichier destination de la commande
@@ -443,6 +430,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			{
 				destination = malloc(strlen(liste_argument[i])+
 				strlen(tsh->repertoire_courant)+3);
+				index_destination = i;
 				sprintf(destination,"%s/%s",tsh->repertoire_courant,liste_argument[i]);
 				break;
 			}
@@ -508,16 +496,20 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		char * argument_courant = malloc(strlen(liste_argument[i])+
 			strlen(tsh->repertoire_courant)+4);
 		sprintf(argument_courant,"%s/%s",tsh->repertoire_courant,liste_argument[i]);
+
+		/*Verification existence et le contexte (dans un tarball ou non) de l'argument courant*/
+
 		//Si la commande n'est pas mv ou cp, on verifie si l'argument est dans un tar
 		if (strcmp(nom_commande,"mv") && strcmp(nom_commande,"cp"))
 		{
 			//Si ce n'est pas le cas, on execute la commande via exec
-			if (contexteTarball(liste_argument[i])==0)
+			if (contexteTarball(argument_courant)==0)
 			{
 				if (strcmp(nom_commande,"mkdir") != 0 &&
-							cheminValide(liste_argument[i],nom_commande)==0)
+							cheminValide(argument_courant,nom_commande)==0)
 				{
 					erreur_chemin_non_valide(liste_argument[i],nom_commande);
+					free(argument_courant);
 					continue;
 				}
 				//Construction de la liste d'arguments a passer a exec
@@ -540,7 +532,19 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 						perror("fork traitement_commandeTar");
 						break;
 					case 0:
-						//Construction de la liste d'arguments a passer a exec
+					//Si la commande est ls, on affiche le nom avant si c'est un dossiers
+						if (strcmp(nom_commande,"ls")==0)
+						{
+							struct stat st;
+							stat(argument_courant,&st);
+							if S_ISDIR(st.st_mode)
+							{
+								char * name = malloc(strlen(liste_argument[i])+5);
+								sprintf(name,"%s :\n",liste_argument[i]);
+								write(STDOUT_FILENO,name,strlen(name));
+								free(name);
+							}
+						}
 						execvp(nom_commande,args);
 						exit(0);
 						break;
@@ -559,7 +563,9 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					//On verifie si le chemin est valide
 					if (cheminValide(argument_courant,nom_commande)==0)
 					{
+						//Sinon on renvoie un message d'erreur
 						erreur_chemin_non_valide(liste_argument[i],nom_commande);
+						free(argument_courant);
 						continue;
 					}
 					//Si c'est le cas, on simplifie le chemin
@@ -567,6 +573,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					//On enleve le '/', qui sert a simplifier le chemin
 					if (argument_courant[strlen(argument_courant)-1]=='/')
 						argument_courant[strlen(argument_courant)-1] = '\0';
+
 					//On verifie si le chemin est encore dans un tar
 					if (contexteTarball(argument_courant) == 0)
 					{
@@ -577,6 +584,19 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 								perror("fork traitement_commande");
 								break;
 							case 0:
+							//Si la commande est ls, on affiche le nom avant si c'est un dossier
+								if (strcmp(nom_commande,"ls")==0)
+								{
+									struct stat st;
+									stat(argument_courant,&st);
+									if S_ISDIR(st.st_mode)
+									{
+										char * name = malloc(strlen(liste_argument[i])+5);
+										sprintf(name,"%s :\n",liste_argument[i]);
+										write(STDOUT_FILENO,name,strlen(name));
+										free(name);
+									}
+								}
 								execlp(nom_commande,nom_commande,liste_argument[i],options,NULL);
 								exit(0);
 								break;
@@ -585,15 +605,12 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 						}
 						continue;
 					}
-					//Sinon on appelle la fonction auxiliaire correspondante
 				}
 			}
 		}
-		//Commande mv,cp
-		else
-		{
 
-		}
+		/*Verification des options */
+
 		//On verifie si les options sont bonnes
 		if (nb_options != 0)
 		{
@@ -609,20 +626,84 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				continue;
 			}
 		}
+
 		/*Maintenant que vous avons les bonnes options, traitons les commandes
 		sur les tarballs */
-		if (strcmp(nom_commande,"mv")==0)
-			mv(liste_argument[i],destination,options,tsh);
-		if (strcmp(nom_commande,"cp")==0)
-			cp(liste_argument[i],destination,options,tsh);
+		if (strcmp(nom_commande,"mv")==0 || strcmp(nom_commande,"cp")==0)
+		{
+			//On saute la destination 
+			if (i == index_destination)
+			{
+				continue;
+			}
+			int dest_in_tar = contexteTarball(destination);
+			//La destination est en dehors d'un tarball
+			if (dest_in_tar == 0)
+			{
+				if (contexteTarball(argument_courant)==0)
+				{
+					//On appelle exec
+					int fils = fork();
+					switch (fils) {
+						case -1:
+							perror("fork traitement_commande");
+							break;
+						case 0:
+							execlp(nom_commande,nom_commande,liste_argument[i],destination,options,NULL);
+							exit(0);
+							break;
+						default :
+							wait(NULL);
+							continue;
+					}
+				}
+				else
+				{
+					if (cheminValide(argument_courant,nom_commande)==0)
+					{
+						erreur_chemin_non_valide(argument_courant,nom_commande);
+						free(argument_courant);
+						continue;
+					}
+					sprintf(argument_courant,"%s",simplifie_chemin(argument_courant));
+					if (contexteTarball(argument_courant)==0)
+					{
+						int fils = fork();
+						switch (fils) {
+							case -1:
+								perror("fork traitement_commande");
+								break;
+							case 0:
+								execlp(nom_commande,nom_commande,argument_courant,destination,options,NULL);
+								exit(0);
+								break;
+							default :
+								wait(NULL);
+								free(argument_courant);
+								continue;
+						}
+					}
+					else
+					{
+						printf("Tar -> NonTar\n");
+					}
+				}
+			}
+			//Destination dans un tar
+			else
+			{
+				printf("->Tar\n");
+			}
+
+		}
 		if (strcmp(nom_commande,"mkdir")==0)
-			mkdir_tar(liste_argument[i],options,tsh);
+			mkdir_tar(argument_courant,options,tsh);
 		if (strcmp(nom_commande,"rm")==0)
-			rm(liste_argument[i],options,tsh);
+			rm(argument_courant,options,tsh);
 		if (strcmp(nom_commande,"cat")==0)
-			cat(liste_argument[i],options,tsh);
+			cat(argument_courant,options,tsh);
 		if (strcmp(nom_commande,"rmdir")==0)
-			rmdir_tar(liste_argument[i],options,tsh);
+			rmdir_tar(argument_courant,options,tsh);
 		if (strcmp(nom_commande,"ls")==0)
 			ls(argument_courant,options,tsh);
 

@@ -151,7 +151,6 @@ REnvoie 0 en cas d'echec, 1 sinon
 */
 int supprimer_fichier_tar(char *tar,char *file,int option)
 {
-	printf("%s\n",file);
 	int fd,fd_copie,lus;
 	char *file2 = malloc(strlen(file)+3);
 	strcpy(file2,file);

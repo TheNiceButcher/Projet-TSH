@@ -30,6 +30,7 @@ shell creation_shell(char **cmd_tarballs,char **option)
 	tsh.cmd_tarballs = cmd_tarballs;
 	tsh.option = option;
 	tsh.nb_cmds = 0;
+	//Calcul du nombre d'options 
 	while(cmd_tarballs[tsh.nb_cmds] != NULL)
 	{
 		tsh.nb_cmds++;
@@ -38,6 +39,9 @@ shell creation_shell(char **cmd_tarballs,char **option)
 		tsh.nb_cmds--;
 	return tsh;
 }
+/*
+Initialise la variable globale "chemin_a_explorer" et ses attributs
+*/
 void init_chemin_explorer(char *path)
 {
 	chemin_a_explorer = malloc(strlen(path));
@@ -45,6 +49,9 @@ void init_chemin_explorer(char *path)
 	index_chemin_a_explorer = 0;
 	sprintf(chemin_a_explorer,"%s",path);
 }
+/*
+Libere la variable "chemin_a_explorer" et ses attributs
+*/
 void free_chemin_explorer()
 {
 	free(chemin_a_explorer);
@@ -130,21 +137,22 @@ int decoup_fich(char * path)
 	index_chemin_a_explorer += 1;
 	return index_chemin_a_explorer;
 }
+/*
+Simplifie le chemin absolu en enlevant les .. et . contenu dans le chemin en argument
+*/
 char *simplifie_chemin(char *chemin)
 {
 	if (chemin == NULL)
 		return NULL;
 	else
 	{
-		//Initialisation de chemin_a_explorer
-		chemin_a_explorer = malloc(strlen(chemin)+1);
-		sprintf(chemin_a_explorer,"%s",chemin);
+		//Initialisation de chemin_a_explorer avec chemin
+		init_chemin_explorer(chemin);
 		char * simplified_path = malloc(strlen(chemin)+1);
-		chemin_length = strlen(chemin);
-		index_chemin_a_explorer = 0;
 		int index_simple = 0;
 		int index_prec = 0;
 		decoup_fich(chemin);
+		//On parcourt le chemin
 		while(index_prec < chemin_length)
 		{
 			char * fich = malloc(index_chemin_a_explorer-index_prec+1);
@@ -184,80 +192,11 @@ char *simplifie_chemin(char *chemin)
 			free(fich);
 
 		}
-		free(chemin_a_explorer);
-		index_chemin_a_explorer = 0;
-		chemin_length = 0;
+		free_chemin_explorer();
 		simplified_path[index_simple] = '\0';
 		return simplified_path;
 	}
 }
-/*
-Simplifie le chemin absolu en enlevant les .. et . contenu dans le chemin en argument
-*/
-/*char *simplifie_chemin(char *chemin)
-{
-	if (chemin == NULL)
-		return NULL;
-	else
-	{
-		char *nvx_chemin = malloc(strlen(chemin));
-		int i = 0;
-		int index = 0;
-		char *name = decoup_nom_fich(chemin,&index);
-		while(name != NULL)
-		{
-			//Présence .
-			if (strcmp(name,".") == 0)
-			{
-				name = decoup_nom_fich(chemin,&index);
-				continue;
-			}
-			//Présence ..
-			if ((strcmp(name,"..") == 0))
-			{
-				i--;
-				i--;
-				//.. signifiant dossier parent en bash, il suffit de 'supprimer' le dossier précédant le .. du chemin
-				while(nvx_chemin[i] != '/')
-				{
-					i--;
-				}
-				i++;
-				name = decoup_nom_fich(chemin,&index);
-				if (name == NULL)
-				{
-					nvx_chemin[i] = '\0';
-					break;
-				}
-				continue;
-			}
-			//Dossier autre
-			else
-			{
-				strcpy(&nvx_chemin[i],name);
-				i += strlen(name) + 1;
-				strcat(nvx_chemin,"/");
-				name = decoup_nom_fich(chemin,&index);
-			}
-		}
-		free(name);
-		nvx_chemin[index] = '\0';
-		if(nvx_chemin[i-1]=='/')
-		{
-			if (i >= 1)
-			{
-				i--;
-				while(nvx_chemin[i] != '/')
-				{
-					i--;
-				}
-				i += 2;
-				nvx_chemin[i] = '\0';
-			}
-		}
-		return nvx_chemin;
-	}
-}*/
 /*
 Recupere la commande de l'utilisateur, renvoie la liste des arguments (mot != " ")
 et Stocke son nombre dans l'adresse en argument

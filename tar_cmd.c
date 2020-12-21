@@ -1,4 +1,7 @@
 #include "tar_cmd.h"
+/*
+Effectue la commande ls sur le fichier present dans un tarball
+*/
 int ls(char *file, char **options,shell *tsh)
 {
 	if (options)
@@ -16,28 +19,26 @@ int ls(char *file, char **options,shell *tsh)
 		{
 			strcat(fichier,"/");
 		}*/
-		char *simplified_path = malloc(strlen(file));
-		sprintf(simplified_path, "%s", file);
 		//Fichier dans un tarball
-		if (contexteTarball(simplified_path))
+		if (contexteTarball(file))
 		{
-			//simplified_path[strlen(simplified_path)-1] = '\0';
-			if (simplified_path[strlen(simplified_path)-1] == '/')
+			//file[strlen(file)-1] = '\0';
+			if (file[strlen(file)-1] == '/')
 			{
-				simplified_path[(strlen(simplified_path))-1] = '\0';
+				file[(strlen(file))-1] = '\0';
 			}
-			int s = recherche_fich_tar(simplified_path);
+			int s = recherche_fich_tar(file);
 			//ls sur un Fichier .tar
-			if (s==strlen(simplified_path))
+			if (s==strlen(file))
 			{
-				char **list = list_fich(simplified_path);
+				char **list = list_fich(file);
 				if (list == NULL)
 				{
-					char *error = malloc(strlen(simplified_path)+strlen("ls \n"));
-					sprintf(error,"ls %s\n",simplified_path);
+					char *error = malloc(strlen(file)+strlen("ls \n"));
+					sprintf(error,"ls %s\n",file);
 					write(STDERR_FILENO,error,strlen(error));
 					free(error);
-					free(simplified_path);
+					free(file);
 					//free(fichier);
 					return 1;
 				}
@@ -88,15 +89,15 @@ int ls(char *file, char **options,shell *tsh)
 					i++;
 				}
 				free(list);
-				free(simplified_path);
+				free(file);
 			}
 			//ls sur un fichier dans un fichier .tar
 			else
 			{
 				//Recherche fichier .tar contenant le fichier
-				char *tar = malloc(strlen(simplified_path));
+				char *tar = malloc(strlen(file));
 				int index = s;
-				strncpy(tar,simplified_path,index);
+				strncpy(tar,file,index);
 				if (tar == NULL)
 				 	printf("impossible\n");
 				else
@@ -104,7 +105,7 @@ int ls(char *file, char **options,shell *tsh)
 					tar[index - 1] = '\0';
 					char **list = list_fich(tar);
 					char *file_to_find = malloc(1024);
-					strncpy(file_to_find,&simplified_path[index],strlen(simplified_path)-index + 1);
+					strncpy(file_to_find,&file[index],strlen(file)-index + 1);
 					if (list == NULL)
 					{
 						char *error = malloc(strlen(tar)+strlen("ls \n"));
@@ -113,7 +114,6 @@ int ls(char *file, char **options,shell *tsh)
 						free(error);
 						free(tar);
 						free(file_to_find);
-						free(simplified_path);
 						return 1;
 					}
 					else
@@ -132,7 +132,7 @@ int ls(char *file, char **options,shell *tsh)
 						{
 							if (strncmp(list[k],file_to_find,strlen(file_to_find))==0)
 							{
-								if (list[k][strlen(simplified_path) - index] == '\0'||list[k][strlen(simplified_path) - index] == '/')
+								if (list[k][strlen(file) - index] == '\0'||list[k][strlen(file) - index] == '/')
 								{
 									int jpp = strlen(file_to_find) + 1;
 									char *fich_to_print = decoup_nom_fich(list[k],&jpp);
@@ -197,11 +197,12 @@ int ls(char *file, char **options,shell *tsh)
 			}
 
 		}
-		free(simplified_path);
-		//free(fichier);
 	}
 	return 0;
 }
+/*
+
+*/
 int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 {
 	if (nb_arg_cmd == 2)
@@ -339,151 +340,97 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 }
 int rm(char *file, char **options, shell *tsh)
 {
-	char * simple = malloc(strlen(file) + strlen(tsh->repertoire_courant)+3);
-	sprintf(simple,"%s/%s",tsh->repertoire_courant,file);
-	sprintf(simple,"%s",simplifie_chemin(simple));
-	if (contexteTarball(simple))
-	{
 
-		int index = recherche_fich_tar(simple);
-		char *tar = malloc(strlen(simple));
-		strncpy(tar,simple,index);
-		//On enleve le / du tar
-		if (tar[index-1]=='/')
+	int index = recherche_fich_tar(file);
+	char *tar = malloc(strlen(file));
+	strncpy(tar,file,index);
+	//On enleve le / du tar
+	if (tar[index-1]=='/')
+	{
+		tar[index-1] = '\0';
+	}
+	//Si on doit supprimer un fichier  .tar
+	if (index == strlen(file))
+	{
+		//Considerant les .tar comme des dossiers, on attend l'option pour le supprimer
+		if (options)
 		{
-			tar[index-1] = '\0';
-		}
-		struct stat st;
-		//On verifie le fichier tar existe
-		if(stat(tar,&st)==-1)
-		{
-			char *error = malloc(strlen(simple)+strlen("rm  : introuvable\n"));
-			sprintf(error,"rm %s : introuvable\n",simple);
-			write(STDERR_FILENO,error,strlen(error));
-			free(error);
-			free(tar);
-			//free(simple2);
-			free(simple);
-			return 1;
-		}
-		//Si on doit supprimer un fichier  .tar
-		if (index == strlen(simple))
-		{
-			//Considerant les .tar comme des dossiers, on attend l'option pour le supprimer
-			if (options)
+			file[strlen(file)-1] = '\0';
+			if(unlink(file)==-1)
 			{
-				simple[strlen(simple)-1] = '\0';
-				if(unlink(simple)==-1)
-				{
-					char *error = malloc(strlen(simple)+strlen("rm  :"));
-					sprintf(error,"rm %s :",simple);
-					perror(error);
-					free(error);
-				}
-			}
-			else
-			{
-				char *error= malloc(
-				strlen("rm  : Veuillez utiliser l'option -r pour supprimer les .tar\n")
-			+ strlen(file));
-				sprintf(error,"rm %s: Veuillez utiliser l'option -r pour supprimer les .tar\n",file);
-				write(STDERR_FILENO,error,strlen(error));
+				char *error = malloc(strlen(file)+strlen("rm  :"));
+				sprintf(error,"rm %s :",file);
+				perror(error);
 				free(error);
 			}
 		}
-		//Suppression dans un .tar
 		else
 		{
-			char *file_to_rm = malloc(strlen(simple));
-			strcpy(file_to_rm,&simple[index]);
-			if(tar[strlen(tar)-1]=='/')
-				tar[strlen(tar)-1] = '\0';
-			supprimer_fichier_tar(tar,file_to_rm,0);
-			free(file_to_rm);
+			char *error= malloc(strlen("rm  : Veuillez utiliser l'option -r pour supprimer les .tar\n")
+			+ strlen(file));
+			sprintf(error,"rm %s: Veuillez utiliser l'option -r pour supprimer les .tar\n",file);
+			write(STDERR_FILENO,error,strlen(error));
+			free(error);
 		}
-		free(tar);
 	}
-	free(simple);
-	//free(simple2);
+		//Suppression dans un .tar
+	else
+	{
+		char *file_to_rm = malloc(strlen(file)-index);
+		strcpy(file_to_rm,&file[index]);
+		if(tar[strlen(tar)-1]=='/')
+			tar[strlen(tar)-1] = '\0';
+		supprimer_fichier_tar(tar,file_to_rm,(options!=NULL));
+		free(file_to_rm);
+	}
+	free(tar);
 	return 0;
 }
 int mkdir_tar(char *file, char **options,shell *tsh)
 {
-	char *fichier = malloc(strlen(file)+strlen(tsh->repertoire_courant)+1);
-	strcpy(fichier,tsh->repertoire_courant);
-	strcat(fichier,"/");
-	strcat(fichier,file);
-	if (fichier[strlen(fichier)-1]!='/')
+	char * fichier= malloc(strlen(file)+1);
+	sprintf(fichier,"%s",file);
+	if (file[strlen(file)-1]!='/')
 	{
 		strcat(fichier,"/");
+		file[strlen(file)] = '\0';
 	}
-	char * file2 = simplifie_chemin(fichier);
-	file2[strlen(file2)] = '\0';
-	//Contexte tar
-	if (contexteTarball(fichier))
+
+	int index = recherche_fich_tar(fichier);
+	if (index == strlen(fichier))
 	{
-		int index = recherche_fich_tar(file2);
-		if (index == strlen(file2))
+		printf("Création de .tar %s\n",fichier);
+	}
+	else
+	{
+		char *tar = malloc(strlen(fichier));
+		strncpy(tar,fichier,index);
+		tar[index-1] = '\0';
+		char *repr_to_create = malloc (strlen(fichier)-index+3);
+		strncpy(repr_to_create,&fichier[index],strlen(fichier)-index+1);
+		repr_to_create[strlen(fichier)-index+1] = '\0';
+		if (repr_to_create[strlen(repr_to_create)-1] != '/')
 		{
-			printf("Création de .tar %s\n",file2);
+			strcat(repr_to_create,"/");
 		}
-		else
-		{
-			file2[strlen(file2)-1] = '\0';
-			char *tar = malloc(strlen(file2));
-			strncpy(tar,file2,index);
-			tar[index-1] = '\0';
-			char *repr_to_create = malloc (strlen(file2)-index+3);
-			strncpy(repr_to_create,&file2[index],strlen(file2)-index+1);
-			repr_to_create[strlen(repr_to_create)] = '\0';
-			if (repr_to_create[strlen(repr_to_create)-1] != '/')
-			{
-				strcat(repr_to_create,"/");
-			}
-			creation_repertoire_tar(tar,repr_to_create);
-			free(file2);
-			free(fichier);
-			free(tar);
-			free(repr_to_create);
-		}
+		creation_repertoire_tar(tar,repr_to_create);
+		free(fichier);
+		free(tar);
+		free(repr_to_create);
+
 	}
 	return 0;
 }
 int rmdir_tar(char *file, char **options,shell *tsh)
 {
-	char *simple_file = malloc(strlen(file)+strlen(tsh->repertoire_courant)+3);
-	sprintf(simple_file,"%s/%s",tsh->repertoire_courant,file);
-
+	printf("rmdir en construction\n");
 	return 0;
 }
 int mv(char *file,char *destination,char **options,shell *tsh)
 {
 	   /* struct stat stat_src;
 	     char *src_final, *dest_final;
-	     //controler le nombre d'arguments
-	     //copier source dans la variable src
-	    	char * src = malloc(1024);
-			strcpy(src,tsh->repertoire_courant);
-			strcat(src,"/");
-			strcat(src,liste_argument[1]);
-			char *simple_src = malloc(1024);
-			strcpy(simple_src,simplifie_chemin(src));
-
-	     //copier destination dans la variable dest
-	     char * dest = malloc(1024);
-			strcpy(dest,tsh->repertoire_courant);
-			strcat(dest,"/");
-			strcat(dest,liste_argument[2]);
-			char *simple_dest = malloc(1024);
-			strcpy(simple_dest,simplifie_chemin(dest));
-
-	     //verifier si le fichier source existe
-	    if (stat(src, &stat_src)== -1) {
-	        printf("le fichier %s n'existe pas\n",src);
-	        exit(EXIT_SUCCESS);
-	    }
-
-	    	if (contexteTarball(simple_src)){
+	    if (contexteTarball(simple_src)){
 	    	   int index = recherche_fich_tar(simple_src);
 			//Fichier source est un .tar
 				if (index == strlen(simple_src))
@@ -723,48 +670,9 @@ int mv(char *file,char *destination,char **options,shell *tsh)
 
 
 
-	    	}
+	    	}*/
 
 
-
-	    	//ni le fichier source ni le fichier destination est un contexte tar
-	    else{
-
-	      //verifier si dest est un chemin
-	     if(dest[0]=='/')
-	        {
-	            strcat(dest,"/");
-	            strcat(dest,src);
-	              if(rename(src,dest)!=0)
-	                printf("Error:\nDirectory not found\n");
-	         }
-	     else {
-	              //construction de la variable src_final
-	                 src_final = malloc(strlen(src) + 1 + strlen(tsh->repertoire_courant) + 1);
-	                 strcpy(src_final,tsh->repertoire_courant);
-	                 strcat(src_final,"/");
-	                 strcat(src_final,src);
-
-	              //construction de la variable dest_final
-	                dest_final = malloc(strlen(dest) + 1 + strlen(tsh->repertoire_courant) + 1 + strlen(src) + 1);
-	                strcpy(dest_final,tsh->repertoire_courant);
-	                strcat(dest_final,"/");
-	                strcat(dest_final,dest);
-	                strcat(dest_final,"/");
-	                strcat(dest_final,src);
-
-	                    if(rename(src_final,dest_final) != 0){
-	                      printf("rename failed with error");
-	                    }
-
-	                free(src_final);
-	                free(dest_final);
-
-	         }
-	}
-	     free(src);
-	     free(dest);
-	     exit(EXIT_SUCCESS);*/
 		printf("mv en construction\n");
 		return 0;
 }
