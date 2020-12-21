@@ -30,7 +30,7 @@ shell creation_shell(char **cmd_tarballs,char **option)
 	tsh.cmd_tarballs = cmd_tarballs;
 	tsh.option = option;
 	tsh.nb_cmds = 0;
-	//Calcul du nombre d'options 
+	//Calcul du nombre d'options
 	while(cmd_tarballs[tsh.nb_cmds] != NULL)
 	{
 		tsh.nb_cmds++;
@@ -44,7 +44,7 @@ Initialise la variable globale "chemin_a_explorer" et ses attributs
 */
 void init_chemin_explorer(char *path)
 {
-	chemin_a_explorer = malloc(strlen(path));
+	chemin_a_explorer = calloc(strlen(path)+1,sizeof(char));
 	chemin_length = strlen(path);
 	index_chemin_a_explorer = 0;
 	sprintf(chemin_a_explorer,"%s",path);
@@ -54,9 +54,11 @@ Libere la variable "chemin_a_explorer" et ses attributs
 */
 void free_chemin_explorer()
 {
-	free(chemin_a_explorer);
+	//free(chemin_a_explorer);
+	memset(chemin_a_explorer,0,chemin_length);
 	chemin_length = 0;
 	index_chemin_a_explorer = 0;
+	free(chemin_a_explorer);
 }
 /*
 Fonction qui prend en argument la commande en entier et une adresse de son index
@@ -194,6 +196,12 @@ char *simplifie_chemin(char *chemin)
 		}
 		free_chemin_explorer();
 		simplified_path[index_simple] = '\0';
+		//Si on a la chaine vide, on est a la racine
+		if (strcmp(simplified_path,"")==0)
+		{
+			free(simplified_path);
+			return "/";
+		}
 		return simplified_path;
 	}
 }

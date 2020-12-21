@@ -38,18 +38,27 @@ int contexteTarball(char*chemin)
 		return 0;
 	else
 	{
-		int i = 0;
-		char *fichier = decoup_nom_fich(chemin,&i);
-		while (fichier != NULL)
+		int index_prec = 0;
+		init_chemin_explorer(chemin);
+		decoup_fich("chemin,&i");
+		while (index_prec < chemin_length)
 		{
+			char * fichier = malloc(index_chemin_a_explorer - index_prec +3);
+			strncpy(fichier,&chemin_a_explorer[index_prec],index_chemin_a_explorer - index_prec);
+			if (fichier[strlen(fichier)-1]=='/')
+			{
+				fichier[strlen(fichier)-1] = '\0';
+			}
 			if (estTarball(fichier))
 			{
 				free(fichier);
+				free_chemin_explorer();
 				return 1;
 			}
-			fichier = decoup_nom_fich(chemin,&i);
+			index_prec = index_chemin_a_explorer;
+			decoup_fich("chemin,&i");
+			free(fichier);
 		}
-		free(fichier);
 		return 0;
 	}
 }
@@ -237,6 +246,7 @@ int cheminValide(char *path,char * cmd)
 		int index_path = 0;
 		init_chemin_explorer(path);
 		char * path_bis = malloc(strlen(path)+3);
+		memset(path_bis,0,strlen(path)+3);
 		decoup_fich("path,&index_path");
 		//On part a la recherche des ..
 		while (index_path < chemin_length)
@@ -271,6 +281,8 @@ int cheminValide(char *path,char * cmd)
 			if (stat(tar,&st)==-1)
 			{
 				free_chemin_explorer();
+				free(path_bis);
+				free(tar);
 				return 0;
 			}
 			//On verifie si la suite du chemin est present dans le tar
@@ -280,6 +292,7 @@ int cheminValide(char *path,char * cmd)
 			if (strcmp(file,"") != 0 && presentDansTar(tar,file)==0)
 			{
 				free(file);
+				free(path_bis);
 				free(tar);
 				free_chemin_explorer();
 				return 0;
@@ -293,6 +306,7 @@ int cheminValide(char *path,char * cmd)
 			if (retour <= 0)
 			{
 				free_chemin_explorer();
+				free(path_bis);
 				return retour;
 			}
 		}
@@ -300,9 +314,11 @@ int cheminValide(char *path,char * cmd)
 		if (index_chemin_a_explorer == chemin_length)
 		{
 			free_chemin_explorer();
+			free(path_bis);
 			return 1;
 		}
 		//Le sous chemin path_bis est donc valide
+		index_path += 3;
 		sprintf(path_bis,"%s/..",path_bis);
 		decoup_fich("");
 		while (index_path < chemin_length)
@@ -323,6 +339,7 @@ int cheminValide(char *path,char * cmd)
 		if (index_path == chemin_length)
 		{
 			free_chemin_explorer();
+			free(path_bis);
 			return 1;
 		}
 		sprintf(path_bis,"%s%s",simplifie_chemin(path_bis),&chemin_a_explorer[index_path]);
@@ -631,7 +648,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		sur les tarballs */
 		if (strcmp(nom_commande,"mv")==0 || strcmp(nom_commande,"cp")==0)
 		{
-			//On saute la destination 
+			//On saute la destination
 			if (i == index_destination)
 			{
 				continue;
@@ -697,15 +714,15 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 
 		}
 		if (strcmp(nom_commande,"mkdir")==0)
-			mkdir_tar(argument_courant,options,tsh);
+			mkdir_tar(liste_argument[i],options,tsh);
 		if (strcmp(nom_commande,"rm")==0)
-			rm(argument_courant,options,tsh);
+			rm(liste_argument[i],options,tsh);
 		if (strcmp(nom_commande,"cat")==0)
-			cat(argument_courant,options,tsh);
+			cat(liste_argument[i],options,tsh);
 		if (strcmp(nom_commande,"rmdir")==0)
-			rmdir_tar(argument_courant,options,tsh);
+			rmdir_tar(liste_argument[i],options,tsh);
 		if (strcmp(nom_commande,"ls")==0)
-			ls(argument_courant,options,tsh);
+			ls(liste_argument[i],options,tsh);
 
 	}
 	return 0;

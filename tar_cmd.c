@@ -4,198 +4,197 @@ Effectue la commande ls sur le fichier present dans un tarball
 */
 int ls(char *file, char **options,shell *tsh)
 {
-	if (options)
+	char * simplified_file = malloc(strlen(file) + strlen(tsh->repertoire_courant)+3);
+	sprintf(simplified_file,"%s/%s",tsh->repertoire_courant,file);
+	sprintf(simplified_file,"%s",simplifie_chemin(simplified_file));
+	if (simplified_file[strlen(simplified_file)-1] == '/')
 	{
-		//Option -l pour un fichier dans un tar (a faire)
-		printf("%s:\n",file);
+		simplified_file[(strlen(simplified_file))-1] = '\0';
 	}
-	//Sans l'option -l
+	int s = recherche_fich_tar(simplified_file);
+	//Tableau qui stocke les noms des fichiers a afficher
+	char ** to_print;
+	//Son index
+	int index_to_print = 0;
+	//ls sur un Fichier .tar
+	if (s==strlen(simplified_file))
+	{
+		char **list = list_fich(simplified_file);
+		if (list == NULL)
+		{
+			char *error = malloc(strlen(file)+strlen("ls \n"));
+			sprintf(error,"ls %s\n",file);
+			write(STDERR_FILENO,error,strlen(error));
+			free(error);
+			free(simplified_file);
+			return 1;
+		}
+		else
+		{
+			//Affichage du nom du dossier
+			char *name_file = malloc(strlen(file)+ 4);
+			sprintf(name_file,"\n%s:\n\n", file);
+			write(STDOUT_FILENO,name_file,strlen(name_file));
+			free(name_file);
+			int nb_fich_list = 0;
+			//Calcul du nombre de fichier dans le tar
+			while (list[nb_fich_list]!=NULL)
+				nb_fich_list++;
+			to_print = calloc((nb_fich_list + 1),sizeof(char *));
+			int k = 0;
+			while (list[k]!=NULL)
+			{
+				int d = 0;
+				//On n'affiche pas les fichiers non presents "a la racine" du tar
+				for(;d < index_to_print;d++)
+				{
+					if (strncmp(to_print[d],list[k],strlen(to_print[d])) == 0)
+					{
+						break;
+					}
+				}
+				if (d == index_to_print)
+				{
+					init_chemin_explorer(list[k]);
+					decoup_fich("");
+					char * mot = malloc(strlen(list[k])+1);
+					strncpy(mot,chemin_a_explorer,index_chemin_a_explorer);
+					mot[index_chemin_a_explorer] = '\0';
+
+					to_print[index_to_print] = malloc(strlen(mot));
+					strcpy(to_print[index_to_print],mot);
+					index_to_print++;
+					free(mot);
+					free_chemin_explorer();
+				}
+				k++;
+			}
+		}
+		int i = 0;
+		while (list[i]!=NULL) {
+			free(list[i]);
+			i++;
+		}
+		free(list);
+	}
+		//ls sur un fichier dans un fichier .tar
 	else
 	{
-		/*char *fichier = malloc(strlen(tsh->repertoire_courant) + strlen(file) + 2);
-		sprintf(fichier,"%s/%s",tsh->repertoire_courant,file);
-		int dossier = (file[strlen(file)-1]=='/');
-		if (dossier==0)
+		//Recherche fichier .tar contenant le fichier
+		char *tar = malloc(strlen(simplified_file));
+		int index = recherche_fich_tar(simplified_file);
+		strncpy(tar,simplified_file,index);
+		if (tar == NULL)
+			printf("impossible\n");
+		else
 		{
-			strcat(fichier,"/");
-		}*/
-		//Fichier dans un tarball
-		if (contexteTarball(file))
-		{
-			//file[strlen(file)-1] = '\0';
-			if (file[strlen(file)-1] == '/')
+			tar[index - 1] = '\0';
+			char **list = list_fich(tar);
+			char *file_to_find = malloc(strlen(simplified_file)+1);
+			strncpy(file_to_find,&simplified_file[index],strlen(simplified_file)-index + 1);
+			if (list == NULL)
 			{
-				file[(strlen(file))-1] = '\0';
+				char *error = malloc(strlen(tar)+strlen("ls \n"));
+				sprintf(error,"ls %s\n",tar);
+				perror(error);
+				free(error);
+				free(tar);
+				free(simplified_file);
+				return 1;
 			}
-			int s = recherche_fich_tar(file);
-			//ls sur un Fichier .tar
-			if (s==strlen(file))
-			{
-				char **list = list_fich(file);
-				if (list == NULL)
-				{
-					char *error = malloc(strlen(file)+strlen("ls \n"));
-					sprintf(error,"ls %s\n",file);
-					write(STDERR_FILENO,error,strlen(error));
-					free(error);
-					free(file);
-					//free(fichier);
-					return 1;
-				}
-				else
-				{
-					//printf("\n%s:\n",file);
-					char **to_print = malloc(25*sizeof(char *));
-					for (int f = 0; f < 25;f++)
-					{
-						to_print[f] = NULL;
-					}
-					int index = 0;
-					int k = 0;
-					while (list[k]!=NULL)
-					{
-						int d = 0;
-						for(;d < index;d++)
-						{
-							if (strncmp(to_print[d],list[k],strlen(to_print[d])) == 0)
-							{
-								//printf("%s\n",to_print[d]);
-								break;
-							}
-						}
-						if (d == index)
-						{
-							int fin_fich = 0;
-							char * mot = decoup_nom_fich(list[k],&fin_fich);
-							if (list[k][strlen(list[k])-1]=='/')
-								strcat(mot,"/");
-							printf("%s\n",mot);
-							to_print[index] = malloc(strlen(mot));
-							strcpy(to_print[index],mot);
-							index++;
-							free(mot);
-						}
-						k++;
-					}
-					for (int f = 0; f < index;f++)
-					{
-						to_print[f] = NULL;
-					}
-					free(to_print);
-				}
-				int i = 0;
-				while (list[i]!=NULL) {
-					free(list[i]);
-					i++;
-				}
-				free(list);
-				free(file);
-			}
-			//ls sur un fichier dans un fichier .tar
 			else
 			{
-				//Recherche fichier .tar contenant le fichier
-				char *tar = malloc(strlen(file));
-				int index = s;
-				strncpy(tar,file,index);
-				if (tar == NULL)
-				 	printf("impossible\n");
-				else
+				int nb_fich_list = 0;
+				char *file_to_find = malloc(strlen(simplified_file)+1);
+				strncpy(file_to_find,&simplified_file[index],strlen(simplified_file)-index + 1);
+				while (list[nb_fich_list]!=NULL)
+					nb_fich_list++;
+				//Recherche du fichier dans le fichier .tar
+				int k = 0;
+				int trouve = 0;
+				to_print = calloc((nb_fich_list + 1),sizeof(char*));
+				//Parcours des fichiers du tar
+				while (list[k]!=NULL)
 				{
-					tar[index - 1] = '\0';
-					char **list = list_fich(tar);
-					char *file_to_find = malloc(1024);
-					strncpy(file_to_find,&file[index],strlen(file)-index + 1);
-					if (list == NULL)
+					if (strncmp(list[k],file_to_find,strlen(file_to_find))==0)
 					{
-						char *error = malloc(strlen(tar)+strlen("ls \n"));
-						sprintf(error,"ls %s\n",tar);
-						perror(error);
-						free(error);
-						free(tar);
-						free(file_to_find);
-						return 1;
-					}
-					else
-					{
-						printf("\n%s:\n",file);
-						//Recherche du fichier dans le fichier .tar
-						int k = 0;
-						int trouve = 0;
-						char ** deja_affiche = malloc(20*sizeof(char*));
-						for(int h = 0; h < 20;h++)
+						if (list[k][strlen(simplified_file) - index] == '\0'||list[k][strlen(simplified_file) - index] == '/')
 						{
-							deja_affiche[h] = NULL;
-						}
-						int i_deja_trouve = 0;
-						while (list[k]!=NULL)
-						{
-							if (strncmp(list[k],file_to_find,strlen(file_to_find))==0)
+							int jpp = strlen(file_to_find) + 1;
+							init_chemin_explorer(&list[k][jpp]);
+							decoup_fich("");
+							int index_path = 0;
+							char * fich_to_print = malloc (index_chemin_a_explorer - index_path +1);
+							strncpy(fich_to_print,&chemin_a_explorer[index_path], index_chemin_a_explorer - index_path);
+							/*if (index_chemin_a_explorer == chemin_length)
+							{*/
+								fich_to_print[index_chemin_a_explorer-jpp] = '\0';
+							//}
+							int d = 0;
+							for (; d < index_to_print;d++)
 							{
-								if (list[k][strlen(file) - index] == '\0'||list[k][strlen(file) - index] == '/')
-								{
-									int jpp = strlen(file_to_find) + 1;
-									char *fich_to_print = decoup_nom_fich(list[k],&jpp);
-									int d = 0;
-									for (; d < i_deja_trouve;d++)
-									{
-										if (fich_to_print==NULL) continue;
-										if (strcmp(fich_to_print,deja_affiche[d])==0)
-											break;
-									}
-									if (d == i_deja_trouve)
-									{
-										//On n'affiche pas le nom du dossier sur lequel on appelle ls
-										if (strncmp(list[k],file_to_find,strlen(file_to_find))==0 && list[k][strlen(list[k])-1] == '/')
-										{
-											//Dossier
-											if(fich_to_print == NULL)
-											{
-												k++;
-												continue;
-											}
-										}
-										//ls sur un fichier != repertoire
-										if (fich_to_print == NULL)
-											fich_to_print = list[k];
-										//Affichage d'un '/' en fin de ligne pour les repertoires
-										printf("%s",fich_to_print);
-										if (list[k][jpp-1] == '/')
-											printf("/\n");
-										else
-										{
-											printf("\n");
-										}
-										deja_affiche[i_deja_trouve] = malloc(strlen(fich_to_print)+1);
-										strcpy(deja_affiche[i_deja_trouve],fich_to_print);
-										i_deja_trouve++;
-										trouve++;
-									}
-									free(fich_to_print);
-								}
+								if (index_chemin_a_explorer==index_path) continue;
+								if (strcmp(fich_to_print,to_print[d])==0)
+									break;
 							}
-							k++;
+							//O
+							if (d == index_to_print)
+							{
+								//On n'affiche pas le nom du dossier sur lequel on appelle ls
+								if (strncmp(list[k],file_to_find,strlen(file_to_find))==0 && list[k][strlen(list[k])-1] == '/')
+								{
+									//Dossier
+									if(index_chemin_a_explorer==index_path)
+									{
+										k++;
+										//free(fich_to_print);
+										free_chemin_explorer();
+										continue;
+									}
+								}
+								//ls sur un fichier != repertoire
+								if (index_chemin_a_explorer==index_path)
+								{
+									sprintf(fich_to_print,"%s",file_to_find);
+								}
+								to_print[index_to_print] = malloc(strlen(fich_to_print)+1);
+
+								strcpy(to_print[index_to_print],fich_to_print);
+								index_to_print++;
+							}
+							//free(fich_to_print);
+							free_chemin_explorer();
 						}
-						for(int h = 0; h < 20;h++)
-						{
-							deja_affiche[h] = NULL;
-						}
-						if (!trouve)
-						{
-							char *error= malloc(strlen("ls : Aucun dossier ni fichier de ce nom\n") + strlen(file) + 2);
-							sprintf(error,"ls %s: Aucun dossier ni fichier de ce nom\n",file);
-							write(STDERR_FILENO,error,strlen(error));
-							free(error);
-						}
-						free(tar);
-						for(int h = 0; h < k;h++)
-							free(list[h]);
-						free(list);
 					}
+					k++;
 				}
-
+				free(tar);
+				for(int h = 0; h < nb_fich_list;h++)
+					free(list[h]);
+				free(list);
 			}
+		}
 
+	}
+	if (options)
+	{
+		printf("A faire\n");
+	}
+	else
+	{
+		if (index_to_print == 1)
+		{
+			if (to_print[0][strlen(to_print[0])-1] != '/')
+			{
+				printf("ls sur un fichier %s\n", file);
+			}
+		}
+		for (int i = 0; i < index_to_print; i++)
+		{
+			char * full_name = malloc(strlen(to_print[i]) + 2);
+			sprintf(full_name,"%s\n", to_print[i]);
+			write(STDOUT_FILENO,full_name,strlen(full_name));
+			free(full_name);
 		}
 	}
 	return 0;
