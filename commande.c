@@ -818,6 +818,18 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	return 0;
 }*/
 
+int redirection(char **liste_argument, int nb_arg_cmd, shell *tsh, int redirect){
+	if (redirect == 1)
+	{
+		redirection_input(liste_argument, nb_arg_cmd, tsh);
+	}
+	else if (redirect == 2)
+	{
+		redirection_error(liste_argument, nb_arg_cmd, tsh);
+	}
+	return 0;
+}
+
 int redirection_input(char **liste_argument, int nb_arg_cmd, shell *tsh)
 {
 	int in, out;
