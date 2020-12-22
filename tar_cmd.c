@@ -31,13 +31,8 @@ int ls(char *file, char **options,shell *tsh)
 		}
 		else
 		{
-			//Affichage du nom du dossier
-			char *name_file = malloc(strlen(file)+ 4);
-			sprintf(name_file,"\n%s:\n\n", file);
-			write(STDOUT_FILENO,name_file,strlen(name_file));
-			free(name_file);
-			int nb_fich_list = 0;
 			//Calcul du nombre de fichier dans le tar
+			int nb_fich_list = 0;
 			while (list[nb_fich_list]!=NULL)
 				nb_fich_list++;
 			to_print = calloc((nb_fich_list + 1),sizeof(char *));
@@ -124,11 +119,11 @@ int ls(char *file, char **options,shell *tsh)
 							init_chemin_explorer(&list[k][jpp]);
 							decoup_fich("");
 							int index_path = 0;
-							char * fich_to_print = malloc (index_chemin_a_explorer - index_path +1);
+							char * fich_to_print = malloc (index_chemin_a_explorer - index_path +2);
 							strncpy(fich_to_print,&chemin_a_explorer[index_path], index_chemin_a_explorer - index_path);
 							/*if (index_chemin_a_explorer == chemin_length)
 							{*/
-								fich_to_print[index_chemin_a_explorer-jpp] = '\0';
+								//fich_to_print[index_chemin_a_explorer-jpp] = '\0';
 							//}
 							int d = 0;
 							for (; d < index_to_print;d++)
@@ -157,7 +152,7 @@ int ls(char *file, char **options,shell *tsh)
 								{
 									sprintf(fich_to_print,"%s",file_to_find);
 								}
-								to_print[index_to_print] = malloc(strlen(fich_to_print)+1);
+								to_print[index_to_print] = malloc(strlen(fich_to_print)+2);
 
 								strcpy(to_print[index_to_print],fich_to_print);
 								index_to_print++;
@@ -186,12 +181,17 @@ int ls(char *file, char **options,shell *tsh)
 		{
 			if (to_print[0][strlen(to_print[0])-1] != '/')
 			{
-				printf("ls sur un fichier %s\n", file);
+				char *full_name = malloc(strlen(file)+3);
+				sprintf(full_name,"%s\n",file);
+				write(STDOUT_FILENO,full_name,strlen(full_name)+1);
+				free(full_name);
 			}
 		}
+		write(STDOUT_FILENO,file,strlen(file));
+		write(STDOUT_FILENO,":\n\n",strlen(":\n\n")+1);
 		for (int i = 0; i < index_to_print; i++)
 		{
-			char * full_name = malloc(strlen(to_print[i]) + 2);
+			char * full_name = malloc(strlen(to_print[i]) + 4);
 			sprintf(full_name,"%s\n", to_print[i]);
 			write(STDOUT_FILENO,full_name,strlen(full_name));
 			free(full_name);

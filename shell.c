@@ -44,7 +44,7 @@ Initialise la variable globale "chemin_a_explorer" et ses attributs
 */
 void init_chemin_explorer(char *path)
 {
-	chemin_a_explorer = calloc(strlen(path)+1,sizeof(char));
+	chemin_a_explorer = calloc(strlen(path)+3,sizeof(char));
 	chemin_length = strlen(path);
 	index_chemin_a_explorer = 0;
 	sprintf(chemin_a_explorer,"%s",path);
@@ -58,7 +58,7 @@ void free_chemin_explorer()
 	memset(chemin_a_explorer,0,chemin_length);
 	chemin_length = 0;
 	index_chemin_a_explorer = 0;
-	free(chemin_a_explorer);
+	//free(chemin_a_explorer);
 }
 /*
 Fonction qui prend en argument la commande en entier et une adresse de son index
@@ -157,8 +157,7 @@ char *simplifie_chemin(char *chemin)
 		//On parcourt le chemin
 		while(index_prec < chemin_length)
 		{
-			char * fich = malloc(index_chemin_a_explorer-index_prec+1);
-			memset(fich,0,index_chemin_a_explorer-index_prec+1);
+			char * fich = calloc(index_chemin_a_explorer-index_prec+1, sizeof(char));
 			strncpy(fich,&chemin_a_explorer[index_prec],index_chemin_a_explorer-index_prec);
 			//Présence .
 			if (strcmp(fich,".") == 0)
@@ -267,7 +266,7 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	{
 		strcpy(nom_commande,liste_argument[0]);
 		//Execution de la commande "exit" et depart du shell
-		if(memmem(nom_commande,sizeof("exit"),"exit",sizeof("exit")))
+		if(strcmp(nom_commande,"exit")==0)
 		{
 			write(STDOUT_FILENO,"Au revoir\n",strlen("Au revoir\n"));
 			tsh->quit = 1;

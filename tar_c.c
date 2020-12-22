@@ -48,7 +48,7 @@ char **list_fich(char *tar)
 		if (entete.name[0] != '\0' && check_checksum(&entete))
 		{
 			//On rajoute le nom dans la liste
-			liste_fichier[taille_archive] = malloc(strlen(entete.name));
+			liste_fichier[taille_archive] = malloc(strlen(entete.name)+1);
 			sprintf(liste_fichier[taille_archive],"%s",entete.name);
 			if (entete.typeflag != '5')
 			{
