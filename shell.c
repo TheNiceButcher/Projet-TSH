@@ -255,6 +255,7 @@ Analyse la ligne de commande et traite la commande
 int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
 {
 	int cmds=0;//nombre de commande entre pipe
+	int redirect = 0;
 	char *nom_commande = malloc(strlen(liste_argument[0])+1);
 	nom_commande[strlen(liste_argument[0])] = '\0';
 	//On verifie si la commande est nulle / vide
@@ -278,12 +279,22 @@ int traitement_commande(char **liste_argument,int nb_arg_cmd,shell *tsh)
                if (strcmp(liste_argument[i], "|") == 0){
                  cmds++;
               }
+                if (strcmp(liste_argument[i], ">") == 0){
+					redirect = 1;
+				}
+		  		else if (strcmp(liste_argument[i], "2>") == 0){
+					redirect = 2;
+				}
             }
             cmds++;//sauvgarde le nombre de commande entre  pipe
 
 		    //s'il notre comamande n'a pas de pipe
 		    if(cmds==1)
 			{
+			    if(redirect > 0){
+					redirection(liste_argument, nb_arg_cmd, tsh, redirect);
+					redirect = 0;
+				}else
 				//On verifie que la commande peut s'effectuer sur les tar ou non
 				if (estCommandeTar(nom_commande,tsh))
 				{
