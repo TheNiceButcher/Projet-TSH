@@ -24,9 +24,11 @@ Renvoie 1 si le fichier est un Tarball, 0 sinon
 */
 int estTarball(char *nom_fichier)
 {
-		if(strcmp(&nom_fichier[strlen(nom_fichier)-4],".tar")==0)
-			return 1;
+	if (strlen(nom_fichier) < 4)
 		return 0;
+	if(strncmp(&nom_fichier[strlen(nom_fichier)-4],".tar",4)==0)
+		return 1;
+	return 0;
 }
 /*
 Verifie si le chemin en argument contient un tarball
@@ -43,7 +45,7 @@ int contexteTarball(char*chemin)
 		decoup_fich("chemin,&i");
 		while (index_prec < chemin_length)
 		{
-			char * fichier = malloc(index_chemin_a_explorer - index_prec +3);
+			char * fichier = calloc(index_chemin_a_explorer - index_prec +1,sizeof(char));
 			strncpy(fichier,&chemin_a_explorer[index_prec],index_chemin_a_explorer - index_prec);
 			if (fichier[strlen(fichier)-1]=='/')
 			{
@@ -201,7 +203,7 @@ int presentDansTar(char *tar,char *file)
 		return 0;
 	}
 	//On verifie si le fichier est dans le tar mais n'a pas d'entete a lui
-	char *file2 = malloc(strlen(file) + 1);
+	char *file2 = malloc(strlen(file) + 2);
 	if (file[strlen(file)-1] != '/')
 	{
 		sprintf(file2,"%s/",file);
@@ -273,7 +275,7 @@ int cheminValide(char *path,char * cmd)
 			int index_tar = recherche_fich_tar(path_bis);
 			char * tar = malloc(index_tar);
 			strncpy(tar,path_bis,index_tar);
-			tar[index_tar] = '\0';
+			//tar[index_tar] = '\0';
 			if (tar[index_tar-1]=='/')
 				tar[index_tar-1] = '\0';
 			struct stat st;
@@ -286,7 +288,7 @@ int cheminValide(char *path,char * cmd)
 				return 0;
 			}
 			//On verifie si la suite du chemin est present dans le tar
-			char * file = malloc(strlen(path_bis)-index_tar);
+			char * file = malloc(strlen(path_bis)-index_tar+1);
 			sprintf(file,"%s",&path_bis[index_tar]);
 			//Si la suite n'est pas present dans le tar, le chemin n'est pas valide
 			if (strcmp(file,"") != 0 && presentDansTar(tar,file)==0)
@@ -367,7 +369,7 @@ Gere le traitement d'une commande pouvant etre executee sur un tar
 */
 int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 {
-	char *nom_commande = malloc(strlen(liste_argument[0]));
+	char *nom_commande = malloc(strlen(liste_argument[0])+2);
 	sprintf(nom_commande,"%s",liste_argument[0]);
 	char *destination = NULL;
 	/*On verifie si la commande est cd ou pwd
@@ -428,7 +430,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	//Sinon, si la commande n'a pas d'argument, on renvoie une erreur
 	if(nb_arg_cmd==1)
 	{
-		char * error = malloc(strlen(nom_commande)+strlen("Arguments manquants\n"));
+		char * error = malloc(strlen(nom_commande)+strlen("Arguments manquants\n")+1);
 		sprintf(error,"%s : Arguments manquants\n",nom_commande);
 		write(STDERR_FILENO,error,strlen(error));
 		free(error);
@@ -455,7 +457,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		//Si on n'en trouve pas, on affiche une erreur
 		if (destination==NULL)
 		{
-			char *error = malloc(strlen(nom_commande)+strlen(" : Aucun argument\n"));
+			char *error = malloc(strlen(nom_commande)+strlen(" : Aucun argument\n")+1);
 			sprintf(error,"%s : Aucun argument\n", nom_commande);
 			write(STDERR_FILENO,error,strlen(error));
 			free(error);
@@ -467,7 +469,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		{
 			if (nb_arg_cmd < 3)
 			{
-				char *error = malloc(strlen(nom_commande)+strlen(" : Cible manquante\n"));
+				char *error = malloc(strlen(nom_commande)+strlen(" : Cible manquante\n")+1);
 				sprintf(error,"%s : Cible manquante\n",nom_commande);
 				write(STDERR_FILENO,error,strlen(error));
 				free(error);
@@ -479,7 +481,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		{
 			if (nb_arg_cmd - nb_options < 3)
 			{
-					char *error = malloc(strlen(nom_commande)+strlen(" : Cible manquante\n"));
+					char *error = malloc(strlen(nom_commande)+strlen(" : Cible manquante\n")+1);
 					sprintf(error,"%s : Cible manquante\n",nom_commande);
 					write(STDERR_FILENO,error,strlen(error));
 					free(error);
@@ -531,16 +533,16 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				}
 				//Construction de la liste d'arguments a passer a exec
 				char **args = malloc((nb_options + 2)*sizeof(char *));
-				args[0] = malloc(strlen(nom_commande));
+				args[0] = malloc(strlen(nom_commande)+1);
 				sprintf(args[0],"%s",nom_commande);
 				//Ajout des options
 				for (int j = 1; j <= nb_options; j++)
 				{
-					args[j] = malloc(strlen(options[j-1]));
+					args[j] = malloc(strlen(options[j-1])+1);
 					sprintf(args[j],"%s",options[j-1]);
 				}
 				//Ajout de l'argument
-				args[nb_options+1] = malloc(strlen(liste_argument[i]));
+				args[nb_options+1] = malloc(strlen(liste_argument[i])+1);
 				sprintf(args[nb_options+1],"%s",liste_argument[i]);
 				args[nb_options+2] = NULL;
 				int fils = fork();
@@ -723,7 +725,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			rmdir_tar(liste_argument[i],options,tsh);
 		if (strcmp(nom_commande,"ls")==0)
 			ls(liste_argument[i],options,tsh);
-
+		free(argument_courant);
 	}
 	return 0;
 }

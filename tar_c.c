@@ -58,22 +58,182 @@ char **list_fich(char *tar)
 			}
 			taille_archive++;
 		}
-		//Sinon, on verifie pourquoi ce n'est pas le cas
+		//Sinon, on arrive a la fin du fichier
 		else
 		{
 			break;
-			//Entete de fin de fichier => fin de parcours
-			/*if(entete.name[0] == '\0')
-			{
-				break;
-			}*/
-			//Bloc qui n'est pas une entete => on continue le parcours
 		}
 	}
 	close(fd);
 	for(int i = taille_archive;i < taille_archive_max;i++)
 		liste_fichier[i] = NULL;
 	return liste_fichier;
+
+}
+struct posix_header recuperer_entete(char *tar,char *file)
+{
+	struct posix_header entete;
+	memset(&entete,0,BLOCKSIZE);
+	int fd;
+	fd = open(tar,O_RDONLY);
+	while(read(fd,&entete,BLOCKSIZE)>= 0)
+	{
+		if (strcmp(entete.name,file) == 0)
+			return entete;
+		unsigned long taille;
+		sscanf(entete.size,"%lo",&taille);
+		lseek(fd,((taille + 512 -1) / 512)*512,SEEK_CUR);
+	}
+	memset(&entete,0,BLOCKSIZE);
+	return entete;
+}
+char * from_mode_to_str_ls_l(char *mode)
+{
+	char * mode_ls = malloc(10);
+	int perm[3];
+	//On recupere la valeur des permissions
+	//permissions proprietaire
+	perm[0] = mode[4] - '0';
+	//permissions groupe
+	perm[1] = mode[5] - '0';
+	//permissions autres
+	perm[2] = mode[6] - '0';
+	for (int i = 0; i < 3; i++)
+	{
+		//Droit de lecture
+		if ((perm[i] - 4) >= 0)
+		{
+			mode_ls[0 + i*3] = 'r';
+			perm[i] -= 4;
+		}
+		else
+			mode_ls[0 + i*3] = '-';
+
+		//Droit d'ecriture
+		if ((perm[i] - 2) >= 0)
+		{
+			mode_ls[1 + i*3] = 'w';
+			perm[i] -= 2;
+		}
+		else
+			mode_ls[1 + i*3] = '-';
+
+		//Droit d'execution
+		if ((perm[i] - 1) >= 0)
+		{
+			mode_ls[2 + i*3] = 'x';
+		}
+		else
+			mode_ls[2 + i*3] = '-';
+	}
+	mode_ls[9] = '\0';
+	return mode_ls;
+}
+char **affichage_ls_l(char ** to_print,char *tar,int nb_files,char **list)
+{
+	char ** ls_l = malloc(nb_files*sizeof(char *));
+	//Calcul du nombre
+	int nb_ln[nb_files];
+	for (int i = 0; i < nb_files;i++)
+	{
+		nb_ln[i] = 1;
+		struct posix_header entete = recuperer_entete(tar,to_print[i]);
+		ls_l[i] = malloc(1024);
+		unsigned long taille;
+		char * time_fich = malloc(1024);
+		time_t date;
+		sscanf(entete.size,"%lo",&taille);
+		sscanf(entete.mtime,"%011lo",&date);
+		//Type de fichier
+		char type_file;
+		switch (entete.typeflag - '0') {
+			//FIchier ordinaire
+			case 0:
+				type_file = '-';
+				break;
+			//Lien
+			case 1:
+				type_file = 'l';
+				break;
+			case 2:
+				type_file = '-';
+				break;
+			//Caractere special
+			case 3:
+				type_file = 'c';
+				break;
+			//Bloc
+			case 4:
+				type_file = 'b';
+				break;
+			//Repertoire
+			case 5:
+				type_file = 'd';
+				break;
+			//FIFO
+			case 6:
+				type_file = 'f';
+				break;
+		}
+		//Calcul date
+		struct tm * tm_t = gmtime(&date);
+		int hour = tm_t->tm_hour;
+		int min = tm_t->tm_min;
+		int day = tm_t->tm_mday;
+		int mois = tm_t->tm_mon;
+		char month[5];
+		switch(mois)
+		{
+			case 0:
+				strcpy(month,"jan.");
+				break;
+			case 1:
+				strcpy(month,"fev.");
+				break;
+			case 2:
+				strcpy(month,"mar.");
+				break;
+			case 3:
+				strcpy(month,"avr.");
+				break;
+			case 4:
+				strcpy(month,"mai.");
+				break;
+			case 5:
+				strcpy(month,"jui.");
+				break;
+			case 6:
+				strcpy(month,"jul.");
+				break;
+			case 7:
+				strcpy(month,"aou.");
+				break;
+			case 8:
+				strcpy(month,"sep.");
+				break;
+			case 9:
+				strcpy(month,"oct.");
+				break;
+			case 10:
+				strcpy(month,"nov.");
+				break;
+			case 11:
+				strcpy(month,"dec.");
+				break;
+		}
+		if (hour < 10)
+			sprintf(time_fich,"%s %d 0%d",month, day, hour);
+		else
+			sprintf(time_fich,"%s %d %d",month, day, hour);
+		if (min < 10)
+			sprintf(time_fich,"%s:0%d",time_fich,min);
+		else
+			sprintf(time_fich,"%s:%d",time_fich,min);
+		sprintf(ls_l[i],"%c%s %d %s %s %ld %s %s\n",
+		type_file,from_mode_to_str_ls_l(entete.mode),nb_ln[i],entete.uname,entete.gname,taille,time_fich,entete.name);
+	}
+
+	return ls_l;
 
 }
 /*
