@@ -336,7 +336,7 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 	printf("cp en construction\n");
 	return 0;
 }
-int rm(char *file, char **options, shell *tsh)
+int supprimer_fichier(char *file, int option, shell *tsh)
 {
 
 	int index = recherche_fich_tar(file);
@@ -351,9 +351,9 @@ int rm(char *file, char **options, shell *tsh)
 	if (index == strlen(file))
 	{
 		//Considerant les .tar comme des dossiers, on attend l'option pour le supprimer
-		if (options)
+		if (option == RM_R)
 		{
-			file[strlen(file)-1] = '\0';
+			file[strlen(file)] = '\0';
 			if(unlink(file)==-1)
 			{
 				char *error = malloc(strlen(file)+strlen("rm  :"));
@@ -364,11 +364,31 @@ int rm(char *file, char **options, shell *tsh)
 		}
 		else
 		{
-			char *error= malloc(strlen("rm  : Veuillez utiliser l'option -r pour supprimer les .tar\n")
-			+ strlen(file));
-			sprintf(error,"rm %s: Veuillez utiliser l'option -r pour supprimer les .tar\n",file);
-			write(STDERR_FILENO,error,strlen(error));
-			free(error);
+			if (option == RM_DIR)
+			{
+				char ** list = list_fich(tar);
+				if (list[0]==NULL)
+				{
+					supprimer_fichier(file, RM_R,tsh);
+				}
+				else
+				{
+					char *error= malloc(strlen("rmdir  : Tar non vide\n")
+					+ strlen(file)+1);
+					sprintf(error,"rmdir %s: Tar non vide\n",file);
+					write(STDERR_FILENO,error,strlen(error));
+					free(error);
+				}
+			}
+			else
+			{
+
+				char *error= malloc(strlen("rm  : Veuillez utiliser l'option -r pour supprimer les .tar\n")
+				+ strlen(file)+1);
+				sprintf(error,"rm %s: Veuillez utiliser l'option -r pour supprimer les .tar\n",file);
+				write(STDERR_FILENO,error,strlen(error));
+				free(error);
+			}
 		}
 	}
 		//Suppression dans un .tar
@@ -378,7 +398,7 @@ int rm(char *file, char **options, shell *tsh)
 		strcpy(file_to_rm,&file[index]);
 		if(tar[strlen(tar)-1]=='/')
 			tar[strlen(tar)-1] = '\0';
-		supprimer_fichier_tar(tar,file_to_rm,(options!=NULL));
+		supprimer_fichier_tar(tar,file_to_rm,option);
 		free(file_to_rm);
 	}
 	free(tar);
@@ -417,11 +437,6 @@ int mkdir_tar(char *file, char **options,shell *tsh)
 		free(repr_to_create);
 
 	}
-	return 0;
-}
-int rmdir_tar(char *file, char **options,shell *tsh)
-{
-	printf("rmdir en construction\n");
 	return 0;
 }
 int mv(char *file,char *destination,char **options,shell *tsh)

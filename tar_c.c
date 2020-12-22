@@ -70,6 +70,8 @@ char **list_fich(char *tar)
 	return liste_fichier;
 
 }
+/*
+*/
 struct posix_header recuperer_entete(char *tar,char *file)
 {
 	struct posix_header entete;
@@ -87,6 +89,8 @@ struct posix_header recuperer_entete(char *tar,char *file)
 	memset(&entete,0,BLOCKSIZE);
 	return entete;
 }
+/*
+*/
 char * from_mode_to_str_ls_l(char *mode)
 {
 	char * mode_ls = malloc(10);
@@ -129,6 +133,8 @@ char * from_mode_to_str_ls_l(char *mode)
 	mode_ls[9] = '\0';
 	return mode_ls;
 }
+/*
+*/
 char **affichage_ls_l(char ** to_print,char *tar,int nb_files,char **list)
 {
 	char ** ls_l = malloc(nb_files*sizeof(char *));
@@ -299,14 +305,13 @@ int affiche_fichier_tar(char *tar,char*file)
 		}
 
 	}
-	char *error = malloc(strlen(file)+strlen("cat  : Fichier  introuvable\n")+2);
-	sprintf(error,"cat : Fichier %s introuvable\n",file);
-	write(STDERR_FILENO,error,strlen(error));
-	free(error);
 	return 0;
 }
 /*
-Supprime le fichier en argument du fichier .tar en argument.
+Supprime le fichier en argument du fichier .tar en argument en fonction de l'option indiquée :
+RM -> supprime le fichier file de tar si ce n'est pas un dossier
+RM_R -> supprime file et tout son contenu si file est un dossier
+RM_DIR -> supprime file si file est un dossier vide
 REnvoie 0 en cas d'echec, 1 sinon
 */
 int supprimer_fichier_tar(char *tar,char *file,int option)
@@ -325,86 +330,75 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 		sprintf(error,"Erreur supprimer_fichier_tar %s",tar);
 		perror(error);
 		free(error);
+		free(file2);
 		return 0;
 	}
 	if (fd_copie == -1)
 	{
 		write(STDERR_FILENO,"Erreur supprimer_fichier_tar\n",strlen("Erreur supprimer_fichier_tar\n"));
+		free(file2);
 		return 0;
 	}
 	int trouvee = 0;
+	//Compteur pour savoir si le dossier est bien vide pour l'option RM_DIR
+	int contenu_dossier = 0;
 	unsigned long taille;
 	while ((lus=read(fd,&entete,BLOCKSIZE)) > 0)
 	{
-		if (trouvee == 0)
-		{
+		/*if (trouvee == 0)
+		{*/
 			//Si nous sommes dans une entete et que nous sommes pas dans un entete de fin de fichier
 			if (entete.name[0] != '\0' && check_checksum(&entete))
 			{
 				//Si c'est le nom du fichier que l'on veut supprimer, on ne l'écrit pas le fichier auxiliaire
-				if(strcmp(file,entete.name)==0||strcmp(file2,entete.name)==0)
+				if(strcmp(file,entete.name)==0||strncmp(file2,entete.name,strlen(file2))==0)
 				{
 					//Option -r absente
-					if (entete.typeflag == '5' && !option)
+					if (entete.typeflag == '5' && option == RM)
 					{
 						char *error = malloc(strlen(file)+strlen("rm  : est un dossier\n")+1);
 						sprintf(error,"rm %s : est un dossier\n",file);
 						write(STDERR_FILENO,error,strlen(error));
 						free(error);
+						free(file2);
+						return 0;
+					}
+					//rmdir sur un fichier autre qu'un dossier
+					if (entete.typeflag != '5' && option == RM_DIR)
+					{
+						char *error = malloc(strlen(file)+strlen("rmdir  : n'est pas un dossier\n")+1);
+						sprintf(error,"rmdir %s : n'est pas un dossier\n",file);
+						write(STDERR_FILENO,error,strlen(error));
+						free(error);
+						free(file2);
 						return 0;
 					}
 					sscanf(entete.size,"%lo",&taille);
 					lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
-					trouvee = 1;
+					contenu_dossier++;
 				}
 				//Sinon on continue de l'ecrire
 				else
 				{
 					write(fd_copie,&entete,lus);
 				}
-
 			}
 			else
 			{
 				write(fd_copie,&entete,lus);
 			}
-		}
-		//On a trouve le fichier a supprimer
-		else
-		{
-			//OPtion -r présente
-			if (option)
-			{
-				//Non ecriture des fichiers du dossier a supprimer
-				if (file[strlen(file)-1]=='/')
-				{
-					if (memmem(entete.name,strlen(file),file,strlen(file)))
-					{
-						sscanf(entete.size,"%lo",&taille);
-						lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
-					}
-					else
-					{
-						write(fd_copie,&entete,lus);
-					}
-				}
-				else
-				{
-					if (memmem(entete.name,strlen(file2),file2,strlen(file2)))
-					{
-						sscanf(entete.size,"%lo",&taille);
-						lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
-					}
-					else
-						write(fd_copie,&entete,lus);
-				}
-			}
-			else
-			{
-				write(fd_copie,&entete,lus);
-			}
-		}
 
+
+
+	}
+	if (contenu_dossier!=1 && option == RM_DIR)
+	{
+		char *error = malloc(strlen(file)+strlen("rmdir  : n'est pas vide\n")+1);
+		sprintf(error,"rmdir %s : n'est pas vide\n",file);
+		write(STDERR_FILENO,error,strlen(error));
+		free(error);
+		free(file2);
+		return 0;
 	}
 	//Copie du fichier auxiliaire dans le fichier en argument
 	close(fd_copie);
@@ -415,8 +409,6 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 		write(fd,&entete,lus);
 
 	}
-	if (!trouvee)
-		printf("rm %s : fichier ou dossier introuvable\n",file);
 	close(fd);
 	close(fd_copie);
 	return 0;

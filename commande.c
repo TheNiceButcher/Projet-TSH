@@ -717,12 +717,26 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		}
 		if (strcmp(nom_commande,"mkdir")==0)
 			mkdir_tar(liste_argument[i],options,tsh);
-		if (strcmp(nom_commande,"rm")==0)
-			rm(liste_argument[i],options,tsh);
+		if (strcmp(nom_commande,"rm")==0 || strcmp(nom_commande,"rmdir")==0)
+		{
+				if (options)
+				{
+					supprimer_fichier(argument_courant,RM_R,tsh);
+				}
+				else
+				{
+					if (strcmp(nom_commande,"rm")==0)
+					{
+						supprimer_fichier(argument_courant,RM,tsh);
+					}
+					else
+					{
+						supprimer_fichier(argument_courant,RM_DIR,tsh);
+					}
+				}
+		}
 		if (strcmp(nom_commande,"cat")==0)
 			cat(liste_argument[i],options,tsh);
-		if (strcmp(nom_commande,"rmdir")==0)
-			rmdir_tar(liste_argument[i],options,tsh);
 		if (strcmp(nom_commande,"ls")==0)
 			ls(liste_argument[i],options,tsh);
 		free(argument_courant);

@@ -17,9 +17,8 @@ int ls(char *file, char **options,shell *tsh);
 int cd(char **liste_argument,int nb_arg_cmd,shell *tsh);
 int pwd(char **liste_argument,int nb_arg_cmd,shell *tsh);
 int cp(char *file,char *destination,char ** options,shell *tsh);
-int rm(char *file, char **options, shell *tsh);
 int mkdir_tar(char *file, char **options,shell *tsh);
-int rmdir_tar(char *file, char **options,shell *tsh);
+int supprimer_fichier(char *file, int option,shell *tsh);
 int mv(char *file,char *destination,char ** options,shell *tsh);
 int cat(char *file, char **options,shell *tsh);
 #endif
