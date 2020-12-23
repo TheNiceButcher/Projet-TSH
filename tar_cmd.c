@@ -333,6 +333,48 @@ int pwd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 }
 int cp(char *file,char * destination,char ** options,shell *tsh)
 {
+    //on a pas a verifier si file et destination existe deja car on la deja verifié a traitement_commandeTar
+    //par contre on fais le test s'il sont des .tar ou des fichier dans des .tar
+     if (contexteTarball(file))
+     {
+	    	   int index = recherche_fich_tar(file);
+			    //Fichier source est un .tar
+				if (index == strlen(file))
+				{
+				 printf("en contruction");
+				}
+				else
+				{
+				    
+				    if(contexteTarball(destination))
+				    {
+				        int index_d = recherche_fich_tar(destination);
+				        if(index_d == strlen(destination))
+				        {
+				            /*char *tar_file = malloc(strlen(file));
+				            strncpy(tar_file,simple2,index);
+			           	   	char *file_to_mv = malloc(strlen(simple_src));
+					        strcpy(file_to_mv,&simple_src[index]);
+				            */
+				             printf("en construction");
+				            
+				        }
+				        
+				        else
+				        {
+				            printf("en construction");
+				        }
+				        
+				    }
+				    
+				    
+				}
+     }
+     //ficher source n'est pas un context tarball
+     else
+     {
+         printf("en construction");
+     }
 	printf("cp en construction\n");
 	return 0;
 }
