@@ -5,8 +5,19 @@ Effectue la commande ls sur le fichier present dans un tarball
 int ls(char *file, char **options,shell *tsh)
 {
 	char * simplified_file = malloc(strlen(file) + strlen(tsh->repertoire_courant)+3);
-	sprintf(simplified_file,"%s/%s",tsh->repertoire_courant,file);
-	sprintf(simplified_file,"%s",simplifie_chemin(simplified_file));
+	//Si file est le repertoire courant, pas besoin de simplifier le chemin
+	if (strcmp(file,tsh->repertoire_courant)==0)
+	{
+		sprintf(simplified_file,"%s",tsh->repertoire_courant);
+		if (simplified_file[strlen(file)-1]=='/')
+			simplified_file[strlen(file)-1] = '\0';
+	}
+	//SInon, on le simplifie
+	else
+	{
+		sprintf(simplified_file,"%s/%s",tsh->repertoire_courant,file);
+		sprintf(simplified_file,"%s",simplifie_chemin(simplified_file));
+	}
 	if (simplified_file[strlen(simplified_file)-1] == '/')
 	{
 		simplified_file[(strlen(simplified_file))-1] = '\0';
@@ -208,8 +219,7 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	if (nb_arg_cmd == 2)
 	{
 		char * nv_repr_courant = malloc(strlen(liste_argument[1])+
-		strlen(tsh->repertoire_courant)+2);
-		//memset(nv_repr_courant,0,)
+		strlen(tsh->repertoire_courant)+4);
 		//Prise en charge des chemins absolus depuis la racine
 		if (liste_argument[1][0] == '/')
 		{
@@ -218,103 +228,79 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		else
 		{
 			sprintf(nv_repr_courant,"%s",tsh->repertoire_courant);
-			//strcpy(nv_repr_courant,tsh->repertoire_courant);
 			if(tsh->repertoire_courant[strlen(tsh->repertoire_courant)-1] != '/')
-				sprintf(nv_repr_courant,"%s/",nv_repr_courant);
-			sprintf(nv_repr_courant,"%s%s",nv_repr_courant,liste_argument[1]);
+				strcat(nv_repr_courant,"/");
+			strcat(nv_repr_courant,liste_argument[1]);
 		}
+		//Ajout du / au chemin s'il n'en y a pas
 		if (nv_repr_courant[strlen(nv_repr_courant)-1] != '/')
-			strcat(nv_repr_courant,"/");
-		//Si on passe par un tarball
-		if (contexteTarball(nv_repr_courant))
 		{
-			strcpy(nv_repr_courant,simplifie_chemin(nv_repr_courant));
-			int i = recherche_fich_tar(nv_repr_courant);
-			char *tar = malloc(strlen(nv_repr_courant));
-			strncpy(tar,nv_repr_courant,i);
-			tar[i-1] = '\0';
-			struct stat test;
-			if (stat(tar,&test) != -1)
-			{
-				//Le repertoire se situe dans le tar
-				if (i != strlen(nv_repr_courant))
-				{
-					char **list = list_fich(tar);
-					if (list)
-					{
-						char *repr_dans_tar = malloc(strlen(nv_repr_courant));
-						strcpy(repr_dans_tar,&nv_repr_courant[i]);
-						if(repr_dans_tar[strlen(repr_dans_tar)-1] != '/')
-						 	strcat(repr_dans_tar,"/");
-						int j = 0;
-						while(list[j]!=NULL)
-						{
-							if (strcmp(repr_dans_tar,list[j])==0)
-							{
-								strcpy(tsh->repertoire_courant,nv_repr_courant);
-								tsh->tarball = 1;
-								return 1;
-							}
-							j++;
-						}
-						char *error= malloc(strlen("cd: Aucun dossier dans \n")+strlen(tar)+strlen(tsh->repertoire_courant)+3);
-						sprintf(error,"cd: Aucun dossier %s dans %s\n",liste_argument[1],tar);
-						write(STDERR_FILENO,error,strlen(error));
-						free(error);
-
-					}
-					else
-					{
-						char *error = malloc(strlen(tar)+strlen("cd \n"));
-						sprintf(error,"cd %s\n",tar);
-						perror(error);
-						free(error);
-					}
-				}
-				//Le repertoire se situe a la racine du tar ou dans un dossier au dessus
-				else
-				{
-					strcpy(tsh->repertoire_courant,nv_repr_courant);
-					//On verifie si on est toujours dans un tarball
-					tsh->tarball = contexteTarball(nv_repr_courant);
-				}
-			}
-			else
-			{
-				char * error = malloc(strlen("cd ")+strlen(tar)+2);
-				sprintf(error,"cd %s",tar);
-				perror(error);
-				free(error);
-			}
-			free(tar);
+			strcat(nv_repr_courant,"/");
+			nv_repr_courant[strlen(nv_repr_courant)] = '\0';
 		}
-		//Sinon, on change directement avec chdir
+		//On verifie si le chemin est valide (c-a-d si le repertoire existe)
+		int valide = cheminValide(nv_repr_courant,"cd");
+		if (valide==0)
+		{
+			erreur_chemin_non_valide(liste_argument[1],"cd");
+			free(nv_repr_courant);
+			return 0;
+		}
 		else
 		{
-			if (nv_repr_courant[strlen(nv_repr_courant) - 1] != '/')
+			//L'argument n'est pas repertoire -> on affiche une erreur
+			if (valide == -1 && errno == ENOTDIR)
 			{
-				int i = strlen(nv_repr_courant);
-				nv_repr_courant[i] = '/';
-				nv_repr_courant[i+1] = '\0';
+				char *error = malloc(strlen(liste_argument[1])+30);
+				sprintf(error,"cd %s : n'est pas un dossier\n",liste_argument[1]);
+				write(STDERR_FILENO,error,strlen(error));
+				free(error);
+				free(nv_repr_courant);
+				return 1;
 			}
-			//Si simplifie_chemin donne le mot vide, on est à la racine
-			if(strlen(nv_repr_courant)==0)
-				strcpy(nv_repr_courant,"/");
-			if (chdir(nv_repr_courant)==-1)
+			sprintf(nv_repr_courant,"%s",simplifie_chemin(nv_repr_courant));
+			if (contexteTarball(nv_repr_courant))
 			{
-				char error[strlen(liste_argument[1])+strlen("cd impossible") + 3];
-				sprintf(error,"cd %s impossible",liste_argument[1]);
-				perror(error);
+				int index_tar = recherche_fich_tar(nv_repr_courant);
+				char *tar = malloc(strlen(nv_repr_courant)+1);
+				strncpy(tar,nv_repr_courant,index_tar);
+				char *file = malloc(strlen(nv_repr_courant)+1);
+				sprintf(file,"%s",&nv_repr_courant[index_tar]);
+				if (index_tar==strlen(nv_repr_courant) || estRepertoire(file,tar)==1)
+				{
+					sprintf(tsh->repertoire_courant,"%s",nv_repr_courant);
+					tsh->tarball = 1;
+					free(nv_repr_courant);
+					return 1;
+				}
+				else
+				{
+					char *error = malloc(strlen(liste_argument[1])+30);
+					sprintf(error,"cd %s : n'est pas un dossier\n",liste_argument[1]);
+					write(STDERR_FILENO,error,strlen(error));
+					free(error);
+					free(nv_repr_courant);
+					return 1;
+				}
 			}
 			else
 			{
-				//sprintf(nv_repr_courant,"%s",simplifie_chemin(nv_repr_courant));
-				strcpy(nv_repr_courant,simplifie_chemin(nv_repr_courant));
-				strcpy(tsh->repertoire_courant,nv_repr_courant);
-				tsh->tarball = 0;
+				if (chdir(nv_repr_courant)==-1)
+				{
+					char error[strlen(liste_argument[1])+strlen("cd impossible") + 3];
+					sprintf(error,"cd %s impossible",liste_argument[1]);
+					perror(error);
+					free(nv_repr_courant);
+				}
+				else
+				{
+					strcpy(nv_repr_courant,simplifie_chemin(nv_repr_courant));
+					strcpy(tsh->repertoire_courant,nv_repr_courant);
+					tsh->tarball = 0;
+					free(nv_repr_courant);
+				}
 			}
 		}
-		free(nv_repr_courant);
 	}
 	else
 	{

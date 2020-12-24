@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdio.h>
+#include <errno.h>
 #include "shell.h"
 #include "commande.h"
 #include "tar_c.h"

@@ -162,7 +162,7 @@ char a_bonnes_options(char *nom_commande,char **options,shell * tsh)
 }
 /*
 Recherche un fichier .tar dans un chemin et retourne l'index de la fin du fichier.tar
-dans le chemin
+dans le chemin. Renvoie -1 si le chemin ne contient pas de fichier tar
 */
 
 int recherche_fich_tar(char *chemin)
@@ -353,10 +353,15 @@ int cheminValide(char *path,char * cmd)
 		struct stat st;
 		if (stat(path,&st)==-1)
 		{
-			//On verifie la valeur de errno
+			//On verifie la valeur de errno pour traiter l'erreur nous meme
+
+			/*Si l'echec de stat est du a l'existence du fichier pour toutes les commandes
+			ou alors s'il est du au fait que le fichier n'est pas un repertoire pour cd
+			on n'affiche pas l'erreur avec perror : On le fera nous meme*/
 			if (errno != ENOENT)
 			{
-				perror("Stat cheminValide");
+				if (errno != ENOTDIR && strcmp("cd",cmd))
+					perror("cheminValide stat");
 				return -1;
 			}
 			return 0;

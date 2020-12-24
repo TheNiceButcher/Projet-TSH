@@ -9,4 +9,5 @@ char **affichage_ls_l(char**,char*,int,char**);
 int affiche_fichier_tar(char *tar,char*file);
 int supprimer_fichier_tar(char *tar,char *file,int option);
 int creation_repertoire_tar(char *tar,char *repr);
+int estRepertoire(char *file,char *tar);
 #endif

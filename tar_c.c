@@ -70,8 +70,6 @@ char **list_fich(char *tar)
 	return liste_fichier;
 
 }
-/*
-*/
 struct posix_header recuperer_entete(char *tar,char *file)
 {
 	struct posix_header entete;
@@ -95,6 +93,22 @@ struct posix_header recuperer_entete(char *tar,char *file)
 	memset(&entete,0,BLOCKSIZE);
 	close(fd);
 	return entete;
+}
+/*
+REnvoie si le fichier dont le nom est file est bien un dossier dans tar
+1 -> repertoire
+0 -> different
+-1 -> absent du tar
+*/
+int estRepertoire(char *file, char *tar)
+{
+	struct posix_header entete = recuperer_entete(tar,file);
+	if (entete.name[0]=='\0')
+	{
+		return -1;
+	}
+	printf("%d\n",entete.typeflag == '5');
+	return entete.typeflag == '5';
 }
 /*
 Prend en argument les droits sur un fichier, sous la forme octale, et renvoie la
@@ -529,6 +543,34 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 	close(fd_copie);
 	return 0;
 }
+int modification_date_modif(char *tar,char *file,time_t date)
+{
+	int fd = open(tar,O_RDWR);
+	if (fd == -1)
+	{
+		perror("Modification Date Acces");
+		return 0;
+	}
+	struct posix_header entete;
+	while (read(fd,&entete,BLOCKSIZE) > 0)
+	{
+		if (strcmp(entete.name,file) == 0)
+		{
+			//printf("%s\n",entete.name);
+			sprintf(entete.mtime,"%011lo",date);
+
+			lseek(fd,-BLOCKSIZE,SEEK_CUR);
+			write(fd,&entete,BLOCKSIZE);
+			close(fd);
+			return 1;
+		}
+		unsigned long taille;
+		sscanf(entete.size,"%lo",&taille);
+		lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+	}
+	close(fd);
+	return 0;
+}
 /*
 Crée un repertoire au nom de repr dans le fichier tar en argument
 REnvoie une erreur si le dossier est deja present dans le fichier tar
@@ -596,7 +638,8 @@ int creation_repertoire_tar(char*tar,char*repr)
 	sprintf(hd.name,"%s",repr);
 	sprintf(hd.mode,"0000777");
     hd.typeflag = '5';
-	sprintf(hd.mtime,"%011lo",time(NULL));
+	time_t date = time(NULL);
+	sprintf(hd.mtime,"%011lo",date);
 	sprintf(hd.uid,"%d",getuid());
 	sprintf(hd.gid,"%d",getgid());
 	sprintf(hd.uname,"%s",getpwuid(getuid())->pw_name);
@@ -636,6 +679,25 @@ int creation_repertoire_tar(char*tar,char*repr)
 		nb_blocs++;
 	}
 	close(fd);
+	//Modification derniere date de modification pour les repertoires au dessus du nouveau fichier
+	init_chemin_explorer(repr);
+	int index_repr = 0;
+	decoup_fich("");
+	char * repr_bis = malloc(strlen(repr)+1);
+	while (index_chemin_a_explorer < chemin_length)
+	{
+		char *file = malloc(strlen(repr)+1);
+		strncpy(file,&chemin_a_explorer[index_repr],index_chemin_a_explorer-index_repr);
+		strcat(repr_bis,file);
+		repr_bis[index_chemin_a_explorer] = '\0';
+		printf("%s\n",repr_bis);
+		modification_date_modif(tar,repr_bis,date);
+		index_repr = index_chemin_a_explorer;
+		decoup_fich("");
+		free(file);
+	}
+	free_chemin_explorer();
+	free(repr_bis);
 	return 0;
 }
 #endif
