@@ -1,3 +1,19 @@
+Bienvenue dans le shell TSH !
+Dans ce shell, quelques commandes classiques voient leurs actions étendues aux tarballs,
+les considérant comme des répertoires.
+En voici la liste :
+-cd (sans option)
+-ls (avec ou sans l'option -l)
+-rmdir (sans option)
+-mv (sans option)
+-cp (avec ou sans l'option -r)
+-rm (avec ou sans l'option -r)
+-mkdir (sans option)
+-cat (sans option)
+-pwd (sans option).
+De plus, les redirections et les tubes considèrent également les tarballs comme
+des répertoires
+Toutes les autres commandes ont le même comportement qu'habituellement.
 Mode d'emploi
 	-Lancement du shell tsh
 		1) Effectuer la commande `make`
