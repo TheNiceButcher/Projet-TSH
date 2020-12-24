@@ -118,8 +118,9 @@ int ls(char *file, char **options,shell *tsh)
 							decoup_fich("");
 							int index_path = 0;
 							char * fich_to_print = malloc (index_chemin_a_explorer - index_path +2);
+							memset(fich_to_print,0,index_chemin_a_explorer-index_path+1);
 							strncpy(fich_to_print,&chemin_a_explorer[index_path], index_chemin_a_explorer - index_path);
-
+							fich_to_print[index_chemin_a_explorer-index + 1] = '\0';
 							int d = 0;
 							for (; d < index_to_print;d++)
 							{
@@ -149,7 +150,8 @@ int ls(char *file, char **options,shell *tsh)
 								}
 								to_print[index_to_print] = malloc(strlen(fich_to_print)+2);
 
-								strcpy(to_print[index_to_print],fich_to_print);
+								sprintf(to_print[index_to_print],"%s",fich_to_print);
+
 								index_to_print++;
 							}
 							free(fich_to_print);
@@ -165,7 +167,7 @@ int ls(char *file, char **options,shell *tsh)
 	//Option -l presente
 	if (options)
 	{
-		char **list_ls = affichage_ls_l(to_print,tar,index_to_print,list);
+		char **list_ls = affichage_ls_l(to_print,simplified_file,index_to_print,list);
 		for (int i = 0; i < index_to_print; i++)
 		{
 			write(STDOUT_FILENO,list_ls[i],strlen(list_ls[i]));
@@ -345,7 +347,7 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 				}
 				else
 				{
-				    
+
 				    if(contexteTarball(destination))
 				    {
 				        int index_d = recherche_fich_tar(destination);
@@ -357,17 +359,17 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 					        strcpy(file_to_mv,&simple_src[index]);
 				            */
 				             printf("en construction");
-				            
+
 				        }
-				        
+
 				        else
 				        {
 				            printf("en construction");
 				        }
-				        
+
 				    }
-				    
-				    
+
+
 				}
      }
      //ficher source n'est pas un context tarball

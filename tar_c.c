@@ -76,20 +76,29 @@ struct posix_header recuperer_entete(char *tar,char *file)
 {
 	struct posix_header entete;
 	memset(&entete,0,BLOCKSIZE);
-	int fd;
-	fd = open(tar,O_RDONLY);
-	while(read(fd,&entete,BLOCKSIZE)>= 0)
+	int fd = open(tar,O_RDONLY);
+	//On verifie le cas ou l'utilisateur a mis le nom du dossier sans le / final
+	char * file2 = malloc(strlen(file)+2);
+	sprintf(file2,"%s/",file);
+	while(read(fd,&entete,BLOCKSIZE) > 0)
 	{
-		if (strcmp(entete.name,file) == 0)
+		if (strcmp(entete.name,file) == 0 || strcmp(entete.name,file2)==0)
+		{
+			free(file2);
+			close(fd);
 			return entete;
+		}
 		unsigned long taille;
 		sscanf(entete.size,"%lo",&taille);
-		lseek(fd,((taille + 512 -1) / 512)*512,SEEK_CUR);
+		lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
 	}
 	memset(&entete,0,BLOCKSIZE);
+	close(fd);
 	return entete;
 }
 /*
+Prend en argument les droits sur un fichier, sous la forme octale, et renvoie la
+chaine de caractère correspondant.
 */
 char * from_mode_to_str_ls_l(char *mode)
 {
@@ -134,16 +143,116 @@ char * from_mode_to_str_ls_l(char *mode)
 	return mode_ls;
 }
 /*
+REnvoie le nombre de sous répertoire directs.
 */
-char **affichage_ls_l(char ** to_print,char *tar,int nb_files,char **list)
+int nombre_sous_dossier(char *repr,char *tar,char **list)
+{
+	int i = 0;
+	int nb_ss_dossier = 0;
+	while (list[i] != NULL)
+	{
+		if (strncmp(repr,list[i],strlen(repr))==0)
+		{
+			init_chemin_explorer(&list[i][strlen(repr)]);
+			int index = decoup_fich("");
+			if (chemin_a_explorer[index-1] == '/')
+			{
+				nb_ss_dossier++;
+			}
+			free_chemin_explorer();
+		}
+		i++;
+	}
+	return nb_ss_dossier;
+}
+/*
+Recherche la date de la derniere modification pour un fichier n'ayant pas d'entete
+dans tar
+*/
+time_t recherche_date_modif(char *tar,char *repr)
+{
+	printf("%s %s\n",tar,repr);
+	int fd = open(tar,O_RDONLY);
+	time_t last_modif = 0;
+	struct posix_header entete;
+	while (read(fd,&entete,BLOCKSIZE)>0)
+	{
+		if (strncmp(entete.name,repr,strlen(repr))==0)
+		{
+			time_t last_modif_file = 0;
+			printf("%s\n",entete.name);
+			sscanf(entete.mtime,"%011lo",&last_modif_file);
+			if (last_modif < last_modif_file)
+			{
+				last_modif = last_modif_file;
+			}
+		}
+		unsigned long taille;
+		sscanf(entete.size,"%lo",&taille);
+		lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+	}
+	if (last_modif==0)
+	{
+		struct stat st;
+		fstat(fd,&st);
+		struct timespec tv;
+		tv = st.st_mtim;
+		last_modif = tv.tv_sec;
+	}
+	close(fd);
+	return last_modif;
+}
+/*
+Renvoie les chaines de caracteres, correspondant aux informations longues sur les
+fichiers, dont les noms sont dans to_print, et présent dans tar.
+*/
+char **affichage_ls_l(char ** to_print,char * argument,int nb_files,char **list)
 {
 	char ** ls_l = malloc(nb_files*sizeof(char *));
+	int index = recherche_fich_tar(argument);
+	char *tar = malloc(index + 4);
+	strncpy(tar,argument,index);
+	if (tar[strlen(tar)-1]=='/')
+	{
+		tar[strlen(tar)-1]= '\0';
+	}
 	//Calcul du nombre
 	int nb_ln[nb_files];
+	long taille_totale = 0;
 	for (int i = 0; i < nb_files;i++)
 	{
 		nb_ln[i] = 1;
-		struct posix_header entete = recuperer_entete(tar,to_print[i]);
+		//On passe en argument le chemin absolu depuis la racine du tar
+		char *chemin_absolu = malloc(strlen(argument)+strlen(to_print[i])+3);
+		if (argument[index]== '\0')
+		{
+			sprintf(chemin_absolu,"%s",to_print[i]);
+		}
+		else
+		{
+			sprintf(chemin_absolu,"%s/%s",&argument[index],to_print[i]);
+		}
+		struct posix_header entete = recuperer_entete(tar,chemin_absolu);
+		//Une entete vide signifie que le fichier n'a pas d'entete -> c'est un dossier
+		if (entete.name[0] == '\0')
+		{
+			entete.typeflag = '5';
+			sprintf(entete.size,"%lo",0);
+			sprintf(entete.mode,"0000777");
+			sprintf(entete.mtime,"%011lo",recherche_date_modif(tar,chemin_absolu));
+			sprintf(entete.uid,"%d",getuid());
+			sprintf(entete.gid,"%d",getgid());
+			sprintf(entete.uname,"%s",getpwuid(getuid())->pw_name);
+			sprintf(entete.gname,"%s",getgrgid(getgid())->gr_name);
+		}
+		if (entete.typeflag == '5')
+		{
+			nb_ln[i] += nombre_sous_dossier(to_print[i],tar,list) + 1;
+		}
+		if (entete.typeflag == '2')
+		{
+			printf("Lien \n");
+		}
 		ls_l[i] = malloc(1024);
 		unsigned long taille;
 		char * time_fich = malloc(1024);
@@ -159,10 +268,10 @@ char **affichage_ls_l(char ** to_print,char *tar,int nb_files,char **list)
 				break;
 			//Lien
 			case 1:
-				type_file = 'l';
+				type_file = 'h';
 				break;
 			case 2:
-				type_file = '-';
+				type_file = 'l';
 				break;
 			//Caractere special
 			case 3:
@@ -236,9 +345,17 @@ char **affichage_ls_l(char ** to_print,char *tar,int nb_files,char **list)
 		else
 			sprintf(time_fich,"%s:%d",time_fich,min);
 		sprintf(ls_l[i],"%c%s %d %s %s %ld %s %s\n",
-		type_file,from_mode_to_str_ls_l(entete.mode),nb_ln[i],entete.uname,entete.gname,taille,time_fich,entete.name);
+		type_file,from_mode_to_str_ls_l(entete.mode),nb_ln[i],entete.uname,entete.gname,taille,time_fich,to_print[i]);
+		taille_totale += (taille + 1024 -1) / 1024;
 	}
-
+	//On affiche la taille quand c'est un repertoire
+	if (nb_files != 1 || strcmp(to_print[0],&argument[index]))
+	{
+		char * chaine_taille = malloc(sizeof(long) + strlen("\n")+3);
+		sprintf(chaine_taille,"total %ld\n",taille_totale);
+		write(STDOUT_FILENO,chaine_taille,strlen(chaine_taille));
+		free(chaine_taille);
+	}
 	return ls_l;
 
 }
@@ -339,7 +456,6 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 		free(file2);
 		return 0;
 	}
-	int trouvee = 0;
 	//Compteur pour savoir si le dossier est bien vide pour l'option RM_DIR
 	int contenu_dossier = 0;
 	unsigned long taille;

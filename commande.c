@@ -90,7 +90,7 @@ char **recherche_option(char **liste_argument,int nb_arg_cmd)
 	{
 		if (liste_argument[i][0] == '-')
 		{
-			result[j] = malloc(strlen(liste_argument[i]));
+			result[j] = malloc(strlen(liste_argument[i])+2);
 			sprintf(result[j],"%s",liste_argument[i]);
 			j++;
 		}
@@ -253,7 +253,7 @@ int cheminValide(char *path,char * cmd)
 		//On part a la recherche des ..
 		while (index_path < chemin_length)
 		{
-			char * fich = malloc(index_chemin_a_explorer - index_path + 1);
+			char * fich = malloc(index_chemin_a_explorer - index_path + 3);
 			strncpy(fich,&chemin_a_explorer[index_path], index_chemin_a_explorer - index_path);
 			fich[index_chemin_a_explorer - index_path] = '\0';
 			//On s'arrete des qu'on rencontre ..
@@ -273,9 +273,9 @@ int cheminValide(char *path,char * cmd)
 		if (contexteTarball(path_bis))
 		{
 			int index_tar = recherche_fich_tar(path_bis);
-			char * tar = malloc(index_tar);
+			char * tar = malloc(index_tar+1);
 			strncpy(tar,path_bis,index_tar);
-			//tar[index_tar] = '\0';
+			tar[index_tar] = '\0';
 			if (tar[index_tar-1]=='/')
 				tar[index_tar-1] = '\0';
 			struct stat st;
