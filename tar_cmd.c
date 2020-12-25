@@ -264,8 +264,18 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				int index_tar = recherche_fich_tar(nv_repr_courant);
 				char *tar = malloc(strlen(nv_repr_courant)+1);
 				strncpy(tar,nv_repr_courant,index_tar);
+				//
+				if (tar[strlen(tar)-1]=='/')
+				{
+					tar[strlen(tar)-1] = '\0';
+				}
 				char *file = malloc(strlen(nv_repr_courant)+1);
 				sprintf(file,"%s",&nv_repr_courant[index_tar]);
+				//
+				if (file[strlen(file)-1]=='/')
+				{
+					file[strlen(file)-1] = '\0';
+				}
 				if (index_tar==strlen(nv_repr_courant) || estRepertoire(file,tar)==1)
 				{
 					sprintf(tsh->repertoire_courant,"%s",nv_repr_courant);

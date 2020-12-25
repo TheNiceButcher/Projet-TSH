@@ -95,19 +95,19 @@ struct posix_header recuperer_entete(char *tar,char *file)
 	return entete;
 }
 /*
-REnvoie si le fichier dont le nom est file est bien un dossier dans tar
+REnvoie si le fichier dont le nom est file est bien un dossier dans tar. On suppose
+qu'il est bien présent dans le fichier tar
 1 -> repertoire
 0 -> different
--1 -> absent du tar
 */
 int estRepertoire(char *file, char *tar)
 {
 	struct posix_header entete = recuperer_entete(tar,file);
+	//Si le fichier n'a pas d'entete, on sait que c'est un dossier
 	if (entete.name[0]=='\0')
 	{
-		return -1;
+		return 1;
 	}
-	printf("%d\n",entete.typeflag == '5');
 	return entete.typeflag == '5';
 }
 /*
