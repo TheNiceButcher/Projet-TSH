@@ -1,6 +1,7 @@
 #ifndef TAR_C_C
 #define TAR_C_C
 #define _GNU_SOURCE
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -73,7 +74,7 @@ char **list_fich(char *tar)
 struct posix_header recuperer_entete(char *tar,char *file)
 {
 	struct posix_header entete;
-	memset(&entete,0,BLOCKSIZE);
+	//memset(&entete,0,BLOCKSIZE);
 	int fd = open(tar,O_RDONLY);
 	//On verifie le cas ou l'utilisateur a mis le nom du dossier sans le / final
 	char * file2 = malloc(strlen(file)+2);
@@ -185,10 +186,10 @@ dans tar
 */
 time_t recherche_date_modif(char *tar,char *repr)
 {
-	printf("%s %s\n",tar,repr);
 	int fd = open(tar,O_RDONLY);
 	time_t last_modif = 0;
 	struct posix_header entete;
+	memset(&entete,0,BLOCKSIZE);
 	while (read(fd,&entete,BLOCKSIZE)>0)
 	{
 		if (strncmp(entete.name,repr,strlen(repr))==0)
@@ -223,15 +224,15 @@ char **affichage_ls_l(char ** to_print,char * argument,int nb_files,char **list)
 {
 	char ** ls_l = malloc(nb_files*sizeof(char *));
 	int index = recherche_fich_tar(argument);
-	char *tar = malloc(index + 4);
+	char *tar = malloc(strlen(argument)+2);
 	strncpy(tar,argument,index);
-	if (tar[strlen(tar)-1]=='/')
+	if (tar[index-1]=='/')
 	{
-		tar[strlen(tar)-1]= '\0';
+		tar[index-1]= '\0';
 	}
 	//Calcul du nombre
 	int nb_ln[nb_files];
-	long taille_totale = 0;
+	long nb_blocs_total = 0;
 	for (int i = 0; i < nb_files;i++)
 	{
 		nb_ln[i] = 1;
@@ -359,13 +360,17 @@ char **affichage_ls_l(char ** to_print,char * argument,int nb_files,char **list)
 			sprintf(time_fich,"%s:%d",time_fich,min);
 		sprintf(ls_l[i],"%c%s %d %s %s %ld %s %s\n",
 		type_file,from_mode_to_str_ls_l(entete.mode),nb_ln[i],entete.uname,entete.gname,taille,time_fich,to_print[i]);
-		taille_totale += (taille + 1024 -1) / 1024;
+		long double partie_entiere = ceil(((long double)taille + 512.0) / (long double) 512.0);
+		nb_blocs_total += ceil(((long double)taille + 512.0) / (long double) 512.0);
 	}
 	//On affiche la taille quand c'est un repertoire
 	if (nb_files != 1 || strcmp(to_print[0],&argument[index]))
 	{
 		char * chaine_taille = malloc(sizeof(long) + strlen("\n")+3);
-		sprintf(chaine_taille,"total %ld\n",taille_totale);
+		printf("%ld\n",nb_blocs_total);
+		int reste = nb_blocs_total % 20;
+		if (reste != 0)
+			nb_blocs_total +=  20 - reste;
 		write(STDOUT_FILENO,chaine_taille,strlen(chaine_taille));
 		free(chaine_taille);
 	}
@@ -451,6 +456,7 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 	strcpy(file2,file);
 	strcat(file2,"/");
 	struct posix_header entete;
+	memset(&entete,0,BLOCKSIZE);
 	fd = open(tar,O_RDWR);
 	//Utilisation d'un fichier auxiliaire
 	fd_copie = open(".supprimer_fichier_tar",O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
@@ -515,6 +521,7 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 			write(fd_copie,&entete,lus);
 		}
 	}
+	//Le dossier n'est pas vide et l'option est RM_DIR => erreur
 	if (contenu_dossier!=1 && option == RM_DIR)
 	{
 		char *error = malloc(strlen(file)+strlen("rmdir  : n'est pas vide\n")+1);
@@ -531,12 +538,15 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 	while ((lus=read(fd_copie,&entete,BLOCKSIZE)) > 0)
 	{
 		write(fd,&entete,lus);
-
 	}
 	close(fd);
 	close(fd_copie);
 	return 0;
 }
+/*
+Modifie l'entete du fichier file dans le fichier tarball tar, en mettant la date
+de la derniere modification a celle renseigne en date
+*/
 int modification_date_modif(char *tar,char *file,time_t date)
 {
 	int fd = open(tar,O_RDONLY);
@@ -553,7 +563,6 @@ int modification_date_modif(char *tar,char *file,time_t date)
 	}
 	struct posix_header entete;
 	int lus = 0;
-	//int nb_blocs = 0;
 	while ((lus = read(fd,&entete,BLOCKSIZE)) > 0)
 	{
 		//On verifie si le bloc lu est une entete
@@ -613,7 +622,7 @@ int creation_repertoire_tar(char*tar,char*repr)
 	memset(&hd,0,sizeof(struct posix_header));
 	sprintf(hd.name,"%s",repr);
 	sprintf(hd.mode,"0000777");
-    hd.typeflag = '5';
+  hd.typeflag = '5';
 	time_t date = time(NULL);
 	sprintf(hd.mtime,"%011lo",date);
 	sprintf(hd.uid,"%d",getuid());
@@ -621,7 +630,7 @@ int creation_repertoire_tar(char*tar,char*repr)
 	sprintf(hd.uname,"%s",getpwuid(getuid())->pw_name);
 	sprintf(hd.gname,"%s",getgrgid(getgid())->gr_name);
 	sprintf(hd.size,"%011o",0);
-    strcpy(hd.magic,"ustar");
+  strcpy(hd.magic,"ustar");
 	set_checksum(&hd);
 	if (!check_checksum(&hd))
 		perror("Checksum impossible");
@@ -655,7 +664,7 @@ int creation_repertoire_tar(char*tar,char*repr)
 		nb_blocs++;
 	}
 	close(fd);
-	//Modification derniere date de modification pour les repertoires au dessus du nouveau fichier
+	//Modification derniere date de modification pour les repertoires "antecedants" du nouveau fichier
 	init_chemin_explorer(repr);
 	int index_repr = 0;
 	decoup_fich("");

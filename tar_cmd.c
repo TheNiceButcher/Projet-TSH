@@ -27,13 +27,12 @@ int ls(char *file, char **options,shell *tsh)
 	char ** to_print;
 	//Son index
 	int index_to_print = 0;
-	char * tar;
+	char * tar = calloc(strlen(simplified_file)+2,sizeof(char));
 	char **list;
 	//ls sur un Fichier .tar
 	if (s==strlen(simplified_file))
 	{
 		list = list_fich(simplified_file);
-		tar = malloc(strlen(simplified_file)+2);
 		sprintf(tar,"%s",simplified_file);
 		if (list == NULL)
 		{
@@ -85,7 +84,6 @@ int ls(char *file, char **options,shell *tsh)
 	else
 	{
 		//Recherche fichier .tar contenant le fichier
-		tar = malloc(strlen(simplified_file)+1);
 		int index = recherche_fich_tar(simplified_file);
 		strncpy(tar,simplified_file,index);
 		if (tar == NULL)
@@ -183,6 +181,11 @@ int ls(char *file, char **options,shell *tsh)
 		{
 			write(STDOUT_FILENO,list_ls[i],strlen(list_ls[i]));
 		}
+		for(int i = 0; i < index_to_print; i++)
+		{
+			free(list_ls[i]);
+		}
+		free(list_ls);
 	}
 	//Sans option -l
 	else
@@ -209,6 +212,9 @@ int ls(char *file, char **options,shell *tsh)
 			free(full_name);
 		}
 	}
+	for (int i = 0; i < index_to_print; i++)
+		free(to_print[i]);
+	free(to_print);
 	return 0;
 }
 /*
@@ -434,7 +440,7 @@ int supprimer_fichier(char *file, int option, shell *tsh)
 		//Suppression dans un .tar
 	else
 	{
-		char *file_to_rm = malloc(strlen(file)-index);
+		char *file_to_rm = malloc(strlen(file)-index + 3);
 		strcpy(file_to_rm,&file[index]);
 		if(tar[strlen(tar)-1]=='/')
 			tar[strlen(tar)-1] = '\0';
@@ -451,7 +457,7 @@ int mkdir_tar(char *file, char **options,shell *tsh)
 	if (file[strlen(file)-1]!='/')
 	{
 		strcat(fichier,"/");
-		file[strlen(fichier)] = '\0';
+		file[strlen(fichier)-1] = '\0';
 	}
 	if (cheminValide(fichier,"mkdir")==1)
 	{

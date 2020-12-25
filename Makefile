@@ -1,7 +1,7 @@
 FLAGS = -Wall -pedantic -g
 FILES = tsh.o commande.o shell.o tar_c.o tar_cmd.o
 all: $(FILES)
-	gcc $(FLAGS) $(FILES) -o tsh -lreadline
+	gcc $(FLAGS) $(FILES) -o tsh -lreadline -lm
 tsh.o: shell.c shell.h commande.c commande.h tsh.c
 	gcc -c $(FLAGS) tsh.c -o tsh.o
 commande.o: shell.c commande.c tar_c.c commande.h tar_cmd.c tar_cmd.h
