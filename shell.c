@@ -25,6 +25,7 @@ shell creation_shell(char **cmd_tarballs,char **option)
 	memset(&tsh, 0, sizeof(shell));
 	tsh.repertoire_courant = malloc(1024);
 	strcpy(tsh.repertoire_courant,getcwd(NULL,1024));
+	strcat(tsh.repertoire_courant,"/");
 	tsh.quit = 0;
 	tsh.tarball = 0;
 	tsh.cmd_tarballs = cmd_tarballs;

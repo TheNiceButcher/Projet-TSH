@@ -270,9 +270,13 @@ int cheminValide(char *path,char * cmd)
 		//On enleve le '/' pour verifier son existence
 		if (path_bis[strlen(path_bis)-1] == '/')
 			path_bis[strlen(path_bis)-1] = '\0';
+		int index_courant = index_chemin_a_explorer;
+		free_chemin_explorer();
+		//Etant donne que contexteTarball utilise la chaine chemin_a_explorer, on la libere
 		if (contexteTarball(path_bis))
 		{
 			int index_tar = recherche_fich_tar(path_bis);
+			index_chemin_a_explorer = index_courant;
 			char * tar = malloc(index_tar+1);
 			strncpy(tar,path_bis,index_tar);
 			tar[index_tar] = '\0';
@@ -282,7 +286,6 @@ int cheminValide(char *path,char * cmd)
 			//On verifie si le .tar existe
 			if (stat(tar,&st)==-1)
 			{
-				free_chemin_explorer();
 				free(path_bis);
 				free(tar);
 				return 0;
@@ -296,7 +299,6 @@ int cheminValide(char *path,char * cmd)
 				free(file);
 				free(path_bis);
 				free(tar);
-				free_chemin_explorer();
 				return 0;
 			}
 			free(file);
@@ -304,16 +306,18 @@ int cheminValide(char *path,char * cmd)
 		else
 		{
 			//N'etant pas dans un tar, on appelle directement cheminValide
-			int retour = cheminValide(path_bis,cmd);
+			int retour = stat(path_bis,NULL);
 			if (retour <= 0)
 			{
-				free_chemin_explorer();
 				free(path_bis);
 				return retour;
 			}
 		}
+		//On reprend le chemin là ou l'on s'était arrete
+		init_chemin_explorer(path);
+		index_chemin_a_explorer = index_courant+1;
 		//On arrive au bout du chemin
-		if (index_chemin_a_explorer == chemin_length)
+		if (index_path == chemin_length)
 		{
 			free_chemin_explorer();
 			free(path_bis);
@@ -338,7 +342,7 @@ int cheminValide(char *path,char * cmd)
 			decoup_fich("");
 			free(fich);
 		}
-		if (index_path == chemin_length)
+		if (index_path >= chemin_length)
 		{
 			free_chemin_explorer();
 			free(path_bis);
@@ -519,7 +523,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 
 		char * argument_courant = malloc(strlen(liste_argument[i])+
 			strlen(tsh->repertoire_courant)+4);
-		sprintf(argument_courant,"%s/%s",tsh->repertoire_courant,liste_argument[i]);
+		sprintf(argument_courant,"%s%s",tsh->repertoire_courant,liste_argument[i]);
 
 		/*Verification existence et le contexte (dans un tarball ou non) de l'argument courant*/
 
@@ -615,13 +619,13 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 									stat(argument_courant,&st);
 									if S_ISDIR(st.st_mode)
 									{
-										char * name = malloc(strlen(liste_argument[i])+5);
-										sprintf(name,"%s :\n",liste_argument[i]);
+										char * name = malloc(strlen(argument_courant)+5);
+										sprintf(name,"%s :\n",argument_courant);
 										write(STDOUT_FILENO,name,strlen(name));
 										free(name);
 									}
 								}
-								execlp(nom_commande,nom_commande,liste_argument[i],options,NULL);
+								execlp(nom_commande,nom_commande,argument_courant,options,NULL);
 								exit(0);
 								break;
 							default :
@@ -748,95 +752,6 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	}
 	return 0;
 }
-
-/*int cp(char **liste_argument,int nb_arg_cmd,shell *tsh)
-{
-	int option = (recherche_option(liste_argument,nb_arg_cmd));
-	if (nb_arg_cmd <= 2)
-	{
-		write(STDERR_FILENO,"cp : Au moins 2 arguments\n",strlen("cp : Au moins 2 arguments\n"));
-		return 1;
-	}
-	//Verification destination cp
-	char *destination = malloc(strlen(liste_argument[nb_arg_cmd-1])+strlen(tsh->repertoire_courant)+3);
-	strcpy(destination,tsh->repertoire_courant);
-	strcat(destination,"/");
-	strcat(destination,liste_argument[nb_arg_cmd-1]);
-	int src_in_tar = 0;
-	if (nb_arg_cmd != 3)
-	{
-
-		if (contexteTarball(destination))
-		{
-			printf("A faire\n");
-		}
-		else
-		{
-			struct stat st;
-			if (stat(destination,&st)!=-1)
-			{
-				printf("A faire\n");
-			}
-			else
-			{
-				char * error = malloc(strlen(liste_argument[nb_arg_cmd-1])+strlen("cp: la cible n'est pas un dossier\n")+3);
-				sprintf(error,"cp: la cible %s n'est pas un dossier\n",liste_argument[nb_arg_cmd-1]);
-				write(STDERR_FILENO,error,strlen(error));
-				free(destination);
-				free(error);
-				return 1;
-			}
-		}
-	}
-	for(int i = 1; i < nb_arg_cmd - 1;i++)
-	{
-		if (liste_argument[i][0] == '-')
-			continue;
-		char * simple = malloc(strlen(liste_argument[i]) + strlen(tsh->repertoire_courant)+3);
-		strcpy(simple,tsh->repertoire_courant);
-		strcat(simple,"/");
-		strcat(simple,liste_argument[i]);
-		int dossier = 0;
-		if (simple[strlen(simple)-1] != '/')
-		{
-			strcat(simple,"/");
-		}
-		else
-			dossier = 1;
-
-		if(contexteTarball(simple))
-		{
-			printf("Coucou\n");
-		}
-		else
-		{
-			if (dossier==0)
-			{
-				simple[strlen(simple)-1] = '\0';
-			}
-			struct stat st;
-			if (stat(simple,&st)!=-1)
-			{
-				if((st.st_mode & S_IFMT) == S_IFDIR)
-				{
-					printf("Dossier %s\n",simple);
-				}
-				else
-					printf("FIchier\n");
-			}
-			else
-			{
-				char * error = malloc(strlen("cp ")+strlen(simple)+2);
-				sprintf(error,"cp %s",simple);
-				perror(error);
-				free(error);
-			}
-		}
-		free(simple);
-	}
-	return 0;
-}*/
-
 int redirection(char **liste_argument, int nb_arg_cmd, shell *tsh, int redirect){
 	if (redirect == 1)
 	{

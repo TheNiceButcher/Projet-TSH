@@ -194,7 +194,6 @@ time_t recherche_date_modif(char *tar,char *repr)
 		if (strncmp(entete.name,repr,strlen(repr))==0)
 		{
 			time_t last_modif_file = 0;
-			printf("%s\n",entete.name);
 			sscanf(entete.mtime,"%011lo",&last_modif_file);
 			if (last_modif < last_modif_file)
 			{
@@ -475,51 +474,46 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 	unsigned long taille;
 	while ((lus=read(fd,&entete,BLOCKSIZE)) > 0)
 	{
-		/*if (trouvee == 0)
-		{*/
-			//Si nous sommes dans une entete et que nous sommes pas dans un entete de fin de fichier
-			if (entete.name[0] != '\0' && check_checksum(&entete))
+		//Si nous sommes dans une entete et que nous sommes pas dans un entete de fin de fichier
+		if (entete.name[0] != '\0' && check_checksum(&entete))
+		{
+			//Si c'est le nom du fichier que l'on veut supprimer, on ne l'écrit pas le fichier auxiliaire
+			if(strcmp(file,entete.name)==0||strncmp(file2,entete.name,strlen(file2))==0)
 			{
-				//Si c'est le nom du fichier que l'on veut supprimer, on ne l'écrit pas le fichier auxiliaire
-				if(strcmp(file,entete.name)==0||strncmp(file2,entete.name,strlen(file2))==0)
+				//Option -r absente
+				if (entete.typeflag == '5' && option == RM)
 				{
-					//Option -r absente
-					if (entete.typeflag == '5' && option == RM)
-					{
-						char *error = malloc(strlen(file)+strlen("rm  : est un dossier\n")+1);
-						sprintf(error,"rm %s : est un dossier\n",file);
-						write(STDERR_FILENO,error,strlen(error));
-						free(error);
-						free(file2);
-						return 0;
-					}
-					//rmdir sur un fichier autre qu'un dossier
-					if (entete.typeflag != '5' && option == RM_DIR)
-					{
-						char *error = malloc(strlen(file)+strlen("rmdir  : n'est pas un dossier\n")+1);
-						sprintf(error,"rmdir %s : n'est pas un dossier\n",file);
-						write(STDERR_FILENO,error,strlen(error));
-						free(error);
-						free(file2);
-						return 0;
-					}
-					sscanf(entete.size,"%lo",&taille);
-					lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
-					contenu_dossier++;
+					char *error = malloc(strlen(file)+strlen("rm  : est un dossier\n")+1);
+					sprintf(error,"rm %s : est un dossier\n",file);
+					write(STDERR_FILENO,error,strlen(error));
+					free(error);
+					free(file2);
+					return 0;
 				}
-				//Sinon on continue de l'ecrire
-				else
+				//rmdir sur un fichier autre qu'un dossier
+				if (entete.typeflag != '5' && option == RM_DIR)
 				{
-					write(fd_copie,&entete,lus);
+					char *error = malloc(strlen(file)+strlen("rmdir  : n'est pas un dossier\n")+1);
+					sprintf(error,"rmdir %s : n'est pas un dossier\n",file);
+					write(STDERR_FILENO,error,strlen(error));
+					free(error);
+					free(file2);
+					return 0;
 				}
+				sscanf(entete.size,"%lo",&taille);
+				lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+				contenu_dossier++;
 			}
+			//Sinon on continue de l'ecrire
 			else
 			{
 				write(fd_copie,&entete,lus);
 			}
-
-
-
+		}
+		else
+		{
+			write(fd_copie,&entete,lus);
+		}
 	}
 	if (contenu_dossier!=1 && option == RM_DIR)
 	{
@@ -545,84 +539,66 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 }
 int modification_date_modif(char *tar,char *file,time_t date)
 {
-	int fd = open(tar,O_RDWR);
+	int fd = open(tar,O_RDONLY);
 	if (fd == -1)
 	{
 		perror("Modification Date Acces");
 		return 0;
 	}
-	struct posix_header entete;
-	while (read(fd,&entete,BLOCKSIZE) > 0)
+	int fd_copie = open(".modification_date_modif",O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+	if (fd_copie == -1)
 	{
-		if (strcmp(entete.name,file) == 0)
-		{
-			//printf("%s\n",entete.name);
-			sprintf(entete.mtime,"%011lo",date);
-
-			lseek(fd,-BLOCKSIZE,SEEK_CUR);
-			write(fd,&entete,BLOCKSIZE);
-			close(fd);
-			return 1;
-		}
-		unsigned long taille;
-		sscanf(entete.size,"%lo",&taille);
-		lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+		perror("Modification Date Acces .modification_date_modif");
+		return 0;
 	}
+	struct posix_header entete;
+	int lus = 0;
+	//int nb_blocs = 0;
+	while ((lus = read(fd,&entete,BLOCKSIZE)) > 0)
+	{
+		//On verifie si le bloc lu est une entete
+		if (entete.name[0] != '\0' && check_checksum(&entete))
+		{
+			//Entete du fichier voulu -> on modifie la date avant de l'ecrire dans la copie
+			if (strcmp(entete.name,file) == 0)
+			{
+				sprintf(entete.mtime,"%011o",date);
+				write(fd_copie,&entete,BLOCKSIZE);
+			}
+			//Autre entete -> on l'ecrit tel quel
+			else
+			{
+				write(fd_copie,&entete,BLOCKSIZE);
+			}
+		}
+		//Le bloc n'est pas un entete -> on l'écrit tel quel
+		else
+		{
+			write(fd_copie,&entete,lus);
+		}
+	}
+	close(fd_copie);
+	close(fd);
+	fd = open(tar,O_WRONLY);
+	lseek(fd,0,SEEK_SET);
+	memset(&entete,0,sizeof(struct posix_header));
+	fd_copie = open(".modification_date_modif",O_RDONLY);
+	lseek(fd_copie,0,SEEK_SET);
+	while ((lus = read(fd_copie,&entete,BLOCKSIZE)) > 0)
+	{
+		write(fd,&entete,lus);
+	}
+	close(fd_copie);
 	close(fd);
 	return 0;
 }
 /*
-Crée un repertoire au nom de repr dans le fichier tar en argument
-REnvoie une erreur si le dossier est deja present dans le fichier tar
+Crée un repertoire au nom de repr dans le fichier tar en argument dans lequel
+repr n'est pas present et est valide
 */
 int creation_repertoire_tar(char*tar,char*repr)
 {
-	//On verifie d'abord si on veut creer un repertoire a la racine du tar ou dans l'un des ses sous repertoire
-	int t = 0;
-	int nb_ss_dossier = 0;
-	while(repr[t]!='\0')
-	{
-		if (repr[t]=='/')
-			nb_ss_dossier++;
-		t++;
 
-	}
-	char **fichiers_tar = list_fich(tar);
-	if (fichiers_tar == NULL)
-	{
-		printf("%s vide ou inexistant\n",tar);
-		return 1;
-	}
-	int index = 0;
-	int trouve = 0;
-	while (fichiers_tar[index]!=NULL)
-	{
-		//Recherche dossier dans le fichier tar
-		if (strncmp(fichiers_tar[index],repr,strlen(fichiers_tar[index]))==0)
-		{
-			if (nb_ss_dossier > 1)
-			{
-				trouve++;
-				index++;
-				continue;
-			}
-			char error[strlen(repr)+strlen(tar)+strlen("mkdir  impossible : deja present dans \n") + 6];
-			sprintf(error,"mkdir %s impossible : deja present dans %s\n",repr,tar);
-			write(STDERR_FILENO,error,strlen(error));
-			return 1;
-		}
-		index++;
-	}
-
-	free(fichiers_tar);
-	//Si le repertoire a creer est dans un sous repertoire de la racine mais que ce sous repertoire n'existe pas,on renvoie une erreur
-	if (nb_ss_dossier > 1 && trouve == 0)
-	{
-		char error[strlen(repr)+strlen(tar)+strlen("mkdir  impossible :  N'est pas un dossier\n") + 6];
-		sprintf(error,"mkdir %s impossible : N'est pas un dossier\n",repr);
-		write(STDERR_FILENO,error,strlen(error));
-		return 1;
-	}
 	int fd = open(tar,O_RDONLY);
 	if(fd == -1)
 	{
@@ -683,14 +659,14 @@ int creation_repertoire_tar(char*tar,char*repr)
 	init_chemin_explorer(repr);
 	int index_repr = 0;
 	decoup_fich("");
-	char * repr_bis = malloc(strlen(repr)+1);
+	char * repr_bis = calloc(strlen(repr)+1,sizeof(char));
 	while (index_chemin_a_explorer < chemin_length)
 	{
 		char *file = malloc(strlen(repr)+1);
 		strncpy(file,&chemin_a_explorer[index_repr],index_chemin_a_explorer-index_repr);
+		file[index_chemin_a_explorer-index_repr] = '\0';
 		strcat(repr_bis,file);
 		repr_bis[index_chemin_a_explorer] = '\0';
-		printf("%s\n",repr_bis);
 		modification_date_modif(tar,repr_bis,date);
 		index_repr = index_chemin_a_explorer;
 		decoup_fich("");

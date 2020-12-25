@@ -15,7 +15,7 @@ int ls(char *file, char **options,shell *tsh)
 	//SInon, on le simplifie
 	else
 	{
-		sprintf(simplified_file,"%s/%s",tsh->repertoire_courant,file);
+		sprintf(simplified_file,"%s%s",tsh->repertoire_courant,file);
 		sprintf(simplified_file,"%s",simplifie_chemin(simplified_file));
 	}
 	if (simplified_file[strlen(simplified_file)-1] == '/')
@@ -446,15 +446,63 @@ int supprimer_fichier(char *file, int option, shell *tsh)
 }
 int mkdir_tar(char *file, char **options,shell *tsh)
 {
-	char * fichier= malloc(strlen(file)+1);
-	sprintf(fichier,"%s",file);
+	char * fichier= malloc(strlen(file)+3+strlen(tsh->repertoire_courant));
+	sprintf(fichier,"%s%s",tsh->repertoire_courant,file);
 	if (file[strlen(file)-1]!='/')
 	{
 		strcat(fichier,"/");
-		file[strlen(file)] = '\0';
+		file[strlen(fichier)] = '\0';
 	}
-
+	if (cheminValide(fichier,"mkdir")==1)
+	{
+		char error[strlen(file)+strlen("mkdir  impossible : deja existant\n") + 6];
+		sprintf(error,"mkdir %s impossible : deja existant\n",file);
+		write(STDERR_FILENO,error,strlen(error));
+		free(fichier);
+		return 1;
+	}
+	int index1 = strlen(fichier) - 1;
+	if (fichier[index1] == '/')
+	{
+		index1--;
+	}
+	while (fichier[index1] != '/')
+	{
+		index1--;
+	}
+	index1++;
+	char * name_repr = malloc(strlen(fichier));
+	sprintf(name_repr,"%s",&fichier[index1]);
+	//Dossier parent du repertoire que l'on veut creer
+	char *parent = malloc(strlen(fichier)+1);
+	strncpy(parent,fichier,index1);
+	parent[index1-1] = '\0';
+	if (cheminValide(parent,"mkdir")==0)
+	{
+		erreur_chemin_non_valide(file,"mkdir");
+		free(parent);
+		free(name_repr);
+		free(fichier);
+		return 1;
+	}
+	sprintf(fichier,"%s",simplifie_chemin(fichier));
 	int index = recherche_fich_tar(fichier);
+	//-1 signifie que le chemin ne contient pas de tarball
+	if (index == -1)
+	{
+		if (mkdir(fichier, S_IRWXU || S_IRWXG || S_IROTH || S_IXOTH) == -1)
+		{
+			char * error = malloc(strlen(file) + 20);
+			sprintf(error,"mkdir %s:",file);
+			perror(error);
+			free(error);
+			free(fichier);
+			free(parent);
+			free(name_repr);
+			return 1;
+		}
+		return 1;
+	}
 	if (index == strlen(fichier))
 	{
 		printf("Création de .tar %s\n",fichier);
@@ -471,6 +519,9 @@ int mkdir_tar(char *file, char **options,shell *tsh)
 		{
 			strcat(repr_to_create,"/");
 		}
+		char * parent = malloc(strlen(file)+1);
+		sprintf(parent,"%s",repr_to_create);
+		int index = strlen(file);
 		creation_repertoire_tar(tar,repr_to_create);
 		free(fichier);
 		free(tar);
