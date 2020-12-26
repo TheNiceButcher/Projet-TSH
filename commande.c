@@ -308,7 +308,7 @@ int cheminValide(char *path,char * cmd)
 		else
 		{
 			//N'etant pas dans un tar, on appelle directement cheminValide
-			int retour = stat(path_bis,NULL);
+			int retour = cheminValide(path_bis,cmd);
 			if (retour <= 0)
 			{
 				free(path_bis);
@@ -340,7 +340,8 @@ int cheminValide(char *path,char * cmd)
 				free(fich);
 				break;
 			}
-			sprintf(path_bis,"%s/..",path_bis);
+			//sprintf(path_bis,"%s/..",path_bis);
+			strcat(path_bis,"/..");
 			index_path = index_chemin_a_explorer;
 			decoup_fich();
 			free(fich);

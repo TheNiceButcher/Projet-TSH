@@ -113,7 +113,6 @@ int ls(char *file, char **options,shell *tsh)
 					nb_fich_list++;
 				//Recherche du fichier dans le fichier .tar
 				int k = 0;
-				int trouve = 0;
 				to_print = calloc((nb_fich_list + 1),sizeof(char*));
 				//Parcours des fichiers du tar
 				while (list[k]!=NULL)
@@ -526,7 +525,6 @@ int mkdir_tar(char *file, char **options,shell *tsh)
 		}
 		char * parent = malloc(strlen(file)+1);
 		sprintf(parent,"%s",repr_to_create);
-		int index = strlen(file);
 		creation_repertoire_tar(tar,repr_to_create);
 		free(fichier);
 		free(tar);

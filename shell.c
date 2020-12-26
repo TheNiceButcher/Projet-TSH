@@ -189,10 +189,10 @@ et Stocke son nombre dans l'adresse en argument
 */
 char **recuperer_commande(int * taille_commande)
 {
+	//Chaine de caractère contenant la commande ecrite par l'utilisateur
 	char * commande = NULL;
 	commande = readline(">");
 	commande[strlen(commande)] = '\0';
-	int index_commande = 0; //Stocke l'index courant de commande
 	int taille_commande_max = 10;
 	char **liste_argument = (char **)malloc(taille_commande_max*sizeof(char*));
 	int j = 1;
