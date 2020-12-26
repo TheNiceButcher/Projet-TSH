@@ -42,7 +42,7 @@ int contexteTarball(char*chemin)
 	{
 		int index_prec = 0;
 		init_chemin_explorer(chemin);
-		decoup_fich("chemin,&i");
+		decoup_fich();
 		while (index_prec < chemin_length)
 		{
 			char * fichier = calloc(index_chemin_a_explorer - index_prec +1,sizeof(char));
@@ -58,7 +58,7 @@ int contexteTarball(char*chemin)
 				return 1;
 			}
 			index_prec = index_chemin_a_explorer;
-			decoup_fich("chemin,&i");
+			decoup_fich();
 			free(fichier);
 		}
 		return 0;
@@ -168,7 +168,7 @@ dans le chemin. Renvoie -1 si le chemin ne contient pas de fichier tar
 int recherche_fich_tar(char *chemin)
 {
 	init_chemin_explorer(chemin);
-	decoup_fich(chemin);
+	decoup_fich();
 	int index_prec = 0;
 	while (index_prec < chemin_length)
 	{
@@ -185,7 +185,7 @@ int recherche_fich_tar(char *chemin)
 			return index;
 		}
 		index_prec = index_chemin_a_explorer;
-		decoup_fich("");
+		decoup_fich();
 	}
 	free_chemin_explorer();
 	return -1;
@@ -249,7 +249,7 @@ int cheminValide(char *path,char * cmd)
 		init_chemin_explorer(path);
 		char * path_bis = malloc(strlen(path)+3);
 		memset(path_bis,0,strlen(path)+3);
-		decoup_fich("path,&index_path");
+		decoup_fich();
 		//On part a la recherche des ..
 		while (index_path < chemin_length)
 		{
@@ -262,9 +262,11 @@ int cheminValide(char *path,char * cmd)
 				free(fich);
 				break;
 			}
-			sprintf(path_bis,"%s%s",path_bis,fich);
+			int lg_path_bis = strlen(path_bis) + strlen(fich);
+			strcat(path_bis,fich);
+			path_bis[lg_path_bis] = '\0';
 			index_path = index_chemin_a_explorer;
-			decoup_fich("path,&index_path");
+			decoup_fich();
 			free(fich);
 		}
 		//On enleve le '/' pour verifier son existence
@@ -326,7 +328,7 @@ int cheminValide(char *path,char * cmd)
 		//Le sous chemin path_bis est donc valide
 		index_path += 3;
 		sprintf(path_bis,"%s/..",path_bis);
-		decoup_fich("");
+		decoup_fich();
 		while (index_path < chemin_length)
 		{
 			char * fich = malloc(index_chemin_a_explorer - index_path + 1);
@@ -339,16 +341,19 @@ int cheminValide(char *path,char * cmd)
 			}
 			sprintf(path_bis,"%s/..",path_bis);
 			index_path = index_chemin_a_explorer;
-			decoup_fich("");
+			decoup_fich();
 			free(fich);
 		}
+		//Fin du chemin -> le chemin est donc valide
 		if (index_path >= chemin_length)
 		{
 			free_chemin_explorer();
 			free(path_bis);
 			return 1;
 		}
+		//Nous ne sommes pas encore a la fin du chemin
 		sprintf(path_bis,"%s%s",simplifie_chemin(path_bis),&chemin_a_explorer[index_path]);
+		//On concatene alors le chemin simplifie de la partie que nous vient de faire et appelle cheminValide dessus
 		free_chemin_explorer();
 		return cheminValide(path_bis,cmd);
 	}
@@ -541,7 +546,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					continue;
 				}
 				//Construction de la liste d'arguments a passer a exec
-				char **args = malloc((nb_options + 2)*sizeof(char *));
+				char **args = malloc((nb_options + 3)*sizeof(char *));
 				args[0] = malloc(strlen(nom_commande)+1);
 				sprintf(args[0],"%s",nom_commande);
 				//Ajout des options

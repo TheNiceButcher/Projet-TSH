@@ -786,51 +786,52 @@ int mv(char *file,char *destination,char **options,shell *tsh)
 		printf("mv en construction\n");
 		return 0;
 }
+/*
+Affiche le contenu du fichier file en argument si cela est possible et renvoie 0.
+Sinon, il renvoie 1 quand l'affichage n'est pas possible
+*/
 int cat(char *file, char **options,shell *tsh)
 {
 	char * fich = malloc(strlen(file)+strlen(tsh->repertoire_courant)+3);
-	sprintf(fich,"%s/%s",tsh->repertoire_courant,file);
-	char *simple = malloc(strlen(fich));
-	strcpy(simple,simplifie_chemin(fich));
-	//Si l'argument est dans un .tar ou est en un
-	if (contexteTarball(simple))
+	sprintf(fich,"%s%s",tsh->repertoire_courant,file);
+	sprintf(fich,"%s",simplifie_chemin(fich));
+	if (estTarball(fich))
 	{
-		//Fichier .tar
-		if (estTarball(simple))
+		char *error = malloc(strlen(file)+
+						strlen("cat %s : Pas de cat sur un .tar\n"));
+		sprintf(error,"cat %s : Pas de cat sur un .tar\n",file);
+		write(STDERR_FILENO,error,strlen(error));
+		free(fich);
+		return 1;
+	}
+	//Fichier dans un .tar
+	else
+	{
+		//Recherche du .tar contenant l'argument
+		char *tar = calloc(strlen(fich)+3,sizeof(char));
+		int index = recherche_fich_tar(fich);
+		strncpy(tar,fich,index);
+		tar[strlen(tar)-1] = '\0';
+		char *file_to_find = malloc(1024);
+		strcpy(file_to_find,&fich[index]);
+		if (file[strlen(file)-1]=='/')
+			file_to_find[strlen(file_to_find)-1] = '\0';
+		else
+			file_to_find[strlen(file_to_find)] = '\0';
+		//On appelle affiche_fichier_tar qui affichera le contenu du fichier ou une erreur
+		if (affiche_fichier_tar(tar,file_to_find)==0)
 		{
-			char *error = malloc(strlen(simple)+
-							strlen("cat %s : Pas de cat sur un .tar\n"));
-			sprintf(error,"cat %s : Pas de cat sur un .tar\n",simple);
+			char *error = malloc(strlen(file)+strlen("cat \n"));
+			sprintf(error,"cat %s : est un dossier\n",file);
 			write(STDERR_FILENO,error,strlen(error));
+			free(error);
+			free(tar);
+			free(file_to_find);
 			return 1;
 		}
-		//Fichier dans un .tar
-		else
-		{
-			//Recherche du .tar contenant l'argument
-			char *tar = malloc(strlen(simple));
-			int index = recherche_fich_tar(simple);
-			strncpy(tar,simple,index);
-			tar[strlen(tar)-1] = '\0';
-			char **list = list_fich(tar);
-			char *file_to_find = malloc(1024);
-			strcpy(file_to_find,&simple[index]);
-			if (list == NULL)
-			{
-				char *error = malloc(strlen(tar)+strlen("cat \n"));
-				sprintf(error,"cat %s\n",tar);
-				perror(error);
-				free(error);
-			}
-			else
-			{
-				if (file[strlen(file)-1]=='/')
-					file_to_find[strlen(file_to_find)-1] = '\0';
-				else
-					file_to_find[strlen(file_to_find)] = '\0';
-				affiche_fichier_tar(tar,file_to_find);
-			}
-		}
+		free(tar);
+		free(file_to_find);
 	}
+
 	return 0;
 }

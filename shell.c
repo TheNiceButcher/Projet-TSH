@@ -62,63 +62,29 @@ void free_chemin_explorer()
 	//free(chemin_a_explorer);
 }
 /*
-Fonction qui prend en argument la commande en entier et une adresse de son index
-courant.
-Elle parcourt la commande et renvoie le premier mot qu'elle trouve.
-Elle ne recupere pas les espaces et renvoie NULL si on a fini de lire la commande
+Parcourt la commande present dans la variable globale commande_a_explorer a partir
+de l'index en argument et renvoie l'index correspondant a la fin du mot debute
+en l'argument index. On definit un mot comme un suite de caractère sans espace.
 */
-char *decoup_mot(char *commande,int *index)
+int decoup_mot_aux(int index)
 {
-	char *mot = malloc(strlen(commande)*sizeof(char));
-	int i = 0;
-	int i_commande = *index;
-	if (commande[i_commande] == '\n' || commande[i_commande] == '\0')
-		return NULL;
-	while (commande[i_commande] == ' ') //Pour ne pas compter les espaces entre les mots
-		i_commande++;
+	//On est a la fin de commande_a_explorer, on renvoie directement index
+	if (commande_a_explorer[index] == '\n' || commande_a_explorer[index] == '\0')
+		return index;
+	while (commande_a_explorer[index] == ' ') //Pour ne pas compter les espaces entre les mots
+		index++;
 	//On parcourt la commande jusqu'a la fin de la ligne ou au prochain espace
-	while (commande[i_commande] != ' ' && commande[i_commande] != '\n' && commande[i_commande] != '\0')
+	while (commande_a_explorer[index] != ' ' && commande_a_explorer[index] != '\n' && commande_a_explorer[index] != '\0')
 	{
-		mot[i] = commande[i_commande];
-		i++;
-		i_commande++;
+		index++;
 	}
-	mot[i] = '\0';
-	//On n'est pas arrive en fin de ligne. On continue de parcourir la commande
-	if ((commande[i_commande] != '\n'))
-		*index = i_commande;
-	//On arrive a la fin de la ligne
-	if(i==0)
-		return NULL;
-	return mot;
+	return index;
 }
 /*
-Renvoie le nom du dossier enfant du chemin à l'index dont l'adresse est donnee en argument
-Si on est à la fin du chemin ou que le chemin est NULL, on renvoie NULL
+Renvoie l'index, dans chemin_a_explorer, de la fin du fichier, qui commence a l'index
+index_chemin_a_explorer au moment de l'appel a decoup_fich
 */
-char *decoup_nom_fich(char *chemin,int *index)
-{
-	if (chemin == NULL || chemin[*index]=='\0')
-		return NULL;
-	int i = *index;
-	int debut_mot = i;
-	int lg_mot = 0;
-	while (chemin[i] != '/')
-	{
-		if (chemin[i] == '\0' || chemin[i] < 33)
-			break;
-		lg_mot++;
-		i++;
-	}
-	if (chemin[i] != '\0')
-		i++;
-	*index = i;
-	char *fichier = malloc(lg_mot);
-	strncpy(fichier,&chemin[debut_mot],lg_mot);
-	fichier[lg_mot] = '\0';
-	return fichier;
-}
-int decoup_fich(char * path)
+int decoup_fich()
 {
 	while (index_chemin_a_explorer < chemin_length)
 	{
@@ -131,10 +97,6 @@ int decoup_fich(char * path)
 
 	if (chemin_length <= index_chemin_a_explorer)
 	{
-		/*if (strlen(chemin_a_explorer) < index_chemin_a_explorer)
-		{
-			index_chemin_a_explorer--;
-		}*/
 		return index_chemin_a_explorer;
 	}
 	index_chemin_a_explorer += 1;
@@ -154,7 +116,7 @@ char *simplifie_chemin(char *chemin)
 		char * simplified_path = malloc(strlen(chemin)+1);
 		int index_simple = 0;
 		int index_prec = 0;
-		decoup_fich(chemin);
+		decoup_fich();
 		//On parcourt le chemin
 		while(index_prec < chemin_length)
 		{
@@ -164,7 +126,7 @@ char *simplifie_chemin(char *chemin)
 			if (strcmp(fich,".") == 0)
 			{
 				index_prec = index_chemin_a_explorer;
-				decoup_fich(chemin);
+				decoup_fich();
 				free(fich);
 				continue;
 			}
@@ -182,7 +144,7 @@ char *simplifie_chemin(char *chemin)
 				index_simple++;
 				simplified_path[index_simple] = '\0';
 				index_prec = index_chemin_a_explorer;
-				decoup_fich(chemin);
+				decoup_fich();
 				free(fich);
 				continue;
 			}
@@ -190,7 +152,7 @@ char *simplifie_chemin(char *chemin)
 			sprintf(&simplified_path[index_simple],"%s",fich);
 			index_simple += strlen(fich);
 			index_prec = index_chemin_a_explorer;
-			decoup_fich(chemin);
+			decoup_fich();
 			free(fich);
 
 		}
@@ -216,38 +178,50 @@ char **recuperer_commande(int * taille_commande)
 	commande[strlen(commande)] = '\0';
 	int index_commande = 0; //Stocke l'index courant de commande
 	int taille_commande_max = 10;
-	int taille_argument_max = 250;
 	char **liste_argument = (char **)malloc(taille_commande_max*sizeof(char*));
-	for (int l = 0;l < taille_commande_max;l++)
-		liste_argument[l] = malloc(taille_argument_max * sizeof(char));
 	int j = 1;
-	char *nom_commande = decoup_mot(commande,&index_commande);
-	liste_argument[0] = nom_commande;
-	char *mot;
-	//Tant qu'il y a des mots a recuperer(mot !=NULL), on les recupere
-	while ((mot = decoup_mot(commande,&index_commande)))
+	commande_a_explorer = malloc(strlen(commande) +3);
+	sprintf(commande_a_explorer,"%s",commande);
+	int index = decoup_mot_aux(0);
+	char * nom_commande = malloc(index +3);
+	strncpy(nom_commande,&commande_a_explorer[0],index);
+	nom_commande[index] = '\0';
+	liste_argument[0] = malloc(strlen(nom_commande)+2);
+	sprintf(liste_argument[0],"%s",nom_commande);
+	int index_prec = index;
+	int lg_cmd = strlen(commande_a_explorer);
+	while (index_prec < lg_cmd)
 	{
+		//Gestion de la memoire
 		if(j == taille_commande_max)
 		{
 			taille_commande_max *= 2;
 			liste_argument = (char **)realloc(liste_argument,taille_commande_max*sizeof(char*));
 		}
-		int len = strlen(mot);
-		if (len > taille_argument_max)
-		{
-			taille_argument_max = len*2;
-			liste_argument[j] = realloc(liste_argument[j],taille_argument_max*sizeof(char));
-		}
-		liste_argument[j] = mot;
+		//Pour ne pas prendre les espaces entre les differents arguments de la commande
+		while (commande_a_explorer[index_prec] == ' ' && commande_a_explorer[index_prec]!='\0')
+			index_prec++;
+		//Arivee a la fin de la commande
+		if (commande_a_explorer[index_prec] == '\0')
+			break;
+		index = decoup_mot_aux(index_prec);
+		char * mot = malloc(index - index_prec + 1);
+		strncpy(mot,&commande_a_explorer[index_prec],index - index_prec);
+		mot[index - index_prec] = '\0';
+		liste_argument[j] = malloc(strlen(mot) + 1);
+		sprintf(liste_argument[j],"%s",mot);
 		j++;
+		free(mot);
+		index_prec = index;
 	}
+	free(commande_a_explorer);
+	free(commande);
 	//On stocke le nombre d'arguments dans l'adresse donne en parametre
 	*taille_commande = j;
 	for (;j < taille_commande_max;j++)
 	{
 		liste_argument[j] = NULL;
 	}
-	free(commande);
 	return liste_argument;
 }
 /*

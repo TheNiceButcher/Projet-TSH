@@ -169,7 +169,7 @@ int nombre_sous_dossier(char *repr,char *tar,char **list)
 		if (strncmp(repr,list[i],strlen(repr))==0)
 		{
 			init_chemin_explorer(&list[i][strlen(repr)]);
-			int index = decoup_fich("");
+			int index = decoup_fich();
 			if (chemin_a_explorer[index-1] == '/')
 			{
 				nb_ss_dossier++;
@@ -444,6 +444,9 @@ int affiche_fichier_tar(char *tar,char*file)
 		}
 
 	}
+	/*On arrive a la fin du tar sans avoir pu trouver le fichier -> fichier sans entete
+	Par consequent, on sait que le fichier est un repertoire
+	On renvoie donc 0 */
 	return 0;
 }
 /*
@@ -671,7 +674,7 @@ int creation_repertoire_tar(char*tar,char*repr)
 	//Modification derniere date de modification pour les repertoires "antecedants" du nouveau fichier
 	init_chemin_explorer(repr);
 	int index_repr = 0;
-	decoup_fich("");
+	decoup_fich();
 	char * repr_bis = calloc(strlen(repr)+1,sizeof(char));
 	while (index_chemin_a_explorer < chemin_length)
 	{
@@ -682,7 +685,7 @@ int creation_repertoire_tar(char*tar,char*repr)
 		repr_bis[index_chemin_a_explorer] = '\0';
 		modification_date_modif(tar,repr_bis,date);
 		index_repr = index_chemin_a_explorer;
-		decoup_fich("");
+		decoup_fich();
 		free(file);
 	}
 	free_chemin_explorer();
