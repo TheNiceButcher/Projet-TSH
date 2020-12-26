@@ -21,7 +21,7 @@
 Fichier qui fait les actions demandé sur les tar
 */
 /*
-REnvoie le nom des fichiers contenus dans un tar
+Renvoie le nom des fichiers contenus dans un tar
 Si le tar n'existe pas, on renvoie NULL
 */
 char **list_fich(char *tar)
@@ -187,6 +187,7 @@ dans tar
 time_t recherche_date_modif(char *tar,char *repr)
 {
 	int fd = open(tar,O_RDONLY);
+	lseek(fd,0,SEEK_SET);
 	time_t last_modif = 0;
 	struct posix_header entete;
 	memset(&entete,0,BLOCKSIZE);
@@ -226,25 +227,36 @@ char **affichage_ls_l(char ** to_print,char * argument,int nb_files,char **list)
 	int index = recherche_fich_tar(argument);
 	char *tar = malloc(strlen(argument)+2);
 	strncpy(tar,argument,index);
+	tar[index] = '\0';
+	//Retrait du /
 	if (tar[index-1]=='/')
 	{
 		tar[index-1]= '\0';
 	}
-	//Calcul du nombre
+	//Calcul du nombre de blocs de 1024 o
 	int nb_ln[nb_files];
 	long nb_blocs_total = 0;
 	for (int i = 0; i < nb_files;i++)
 	{
 		nb_ln[i] = 1;
 		//On passe en argument le chemin absolu depuis la racine du tar
-		char *chemin_absolu = malloc(strlen(argument)+strlen(to_print[i])+3);
-		if (argument[index]== '\0')
+		char *chemin_absolu = calloc(strlen(argument)+strlen(to_print[i])+3,sizeof(char));
+		//Racine en tar
+		if (argument[index] == '\0')
 		{
 			sprintf(chemin_absolu,"%s",to_print[i]);
 		}
 		else
 		{
-			sprintf(chemin_absolu,"%s/%s",&argument[index],to_print[i]);
+			//Si le fichier
+			if (strcmp(&argument[index],to_print[0])==0 && nb_files == 1)
+			{
+				sprintf(chemin_absolu,"%s",to_print[0]);
+			}
+			else
+			{
+				sprintf(chemin_absolu,"%s/%s",&argument[index],to_print[i]);
+			}
 		}
 		struct posix_header entete = recuperer_entete(tar,chemin_absolu);
 		//Une entete vide signifie que le fichier n'a pas d'entete -> c'est un dossier
@@ -272,7 +284,7 @@ char **affichage_ls_l(char ** to_print,char * argument,int nb_files,char **list)
 		char * time_fich = malloc(1024);
 		time_t date;
 		sscanf(entete.size,"%lo",&taille);
-		sscanf(entete.mtime,"%011o",&date);
+		sscanf(entete.mtime,"%011lo",&date);
 		//Type de fichier
 		char type_file;
 		switch (entete.typeflag - '0') {
@@ -360,18 +372,21 @@ char **affichage_ls_l(char ** to_print,char * argument,int nb_files,char **list)
 			sprintf(time_fich,"%s:%d",time_fich,min);
 		sprintf(ls_l[i],"%c%s %d %s %s %ld %s %s\n",
 		type_file,from_mode_to_str_ls_l(entete.mode),nb_ln[i],entete.uname,entete.gname,taille,time_fich,to_print[i]);
-		long double partie_entiere = ceil(((long double)taille + 512.0) / (long double) 512.0);
+		//Calcul du poids total en bloc de 512 o pour commencer
 		nb_blocs_total += ceil(((long double)taille + 512.0) / (long double) 512.0);
 	}
 	//On affiche la taille quand c'est un repertoire
 	if (nb_files != 1 || strcmp(to_print[0],&argument[index]))
 	{
 		char * chaine_taille = malloc(sizeof(long) + strlen("\n")+3);
+		//Le tar etant sous la forme de 20 blocs de 512o, on verifie s'il faut des blocs vides pour combler
 		int reste = nb_blocs_total % 20;
 		if (reste != 0)
-			nb_blocs_total +=  20 - reste;
+			nb_blocs_total +=  (20 - reste) ;
+		/*Maintenant que nous savons le nombre de blocs de 512o qu'on a, il suffit de
+		renvoyer la partie entiere de la division du nombre de blocs par 2*/
 		if (nb_blocs_total % 2 == 0)
-			nb_blocs_total /= 2;
+			nb_blocs_total = (nb_blocs_total / 2);
 		else
 			nb_blocs_total = (nb_blocs_total / 2) + 1;
 		sprintf(chaine_taille,"total %ld\n",nb_blocs_total);

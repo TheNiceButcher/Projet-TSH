@@ -175,15 +175,36 @@ int ls(char *file, char **options,shell *tsh)
 	if (options)
 	{
 		char **list_ls = affichage_ls_l(to_print,simplified_file,index_to_print,list);
-		for (int i = 0; i < index_to_print; i++)
+		//Si ls est sur un seul fichier, on modifie la ligne avant de l'afficher pour y mettre le chemin
+		int index_tar = strlen(tar)+1;
+		//S'il y a un seul fichier et qu'il a le meme nom, on a donc appele ls sur ce fichier
+		if (index_to_print == 1 && strcmp(&simplified_file[index_tar],to_print[0])==0)
 		{
-			write(STDOUT_FILENO,list_ls[i],strlen(list_ls[i]));
+		 char * true_line = malloc(strlen(list_ls[0])+strlen(file)+3);
+		 sprintf(true_line, "%s", list_ls[0]);
+		 int i = strlen(list_ls[0]) - 1;
+		 while (true_line[i] != ' ')
+		 {
+			 i--;
+		 }
+		 i++;
+		 strcpy(&true_line[i],file);
+		 strcat(true_line,"\n");
+		 write(STDOUT_FILENO,true_line,strlen(true_line));
+		 free(true_line);
 		}
-		for(int i = 0; i < index_to_print; i++)
+		else
 		{
-			free(list_ls[i]);
+			for (int i = 0; i < index_to_print; i++)
+			{
+				write(STDOUT_FILENO,list_ls[i],strlen(list_ls[i]));
+			}
+			for(int i = 0; i < index_to_print; i++)
+			{
+				free(list_ls[i]);
+			}
+			free(list_ls);
 		}
-		free(list_ls);
 	}
 	//Sans option -l
 	else

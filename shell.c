@@ -189,7 +189,7 @@ et Stocke son nombre dans l'adresse en argument
 */
 char **recuperer_commande(int * taille_commande)
 {
-	//Chaine de caractère contenant la commande ecrite par l'utilisateur
+	//Chaine de caractère contenant la commande ecrite par l'utilisateur 
 	char * commande = NULL;
 	commande = readline(">");
 	commande[strlen(commande)] = '\0';
