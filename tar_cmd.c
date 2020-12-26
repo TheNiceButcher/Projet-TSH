@@ -126,10 +126,9 @@ int ls(char *file, char **options,shell *tsh)
 							init_chemin_explorer(&list[k][jpp]);
 							decoup_fich("");
 							int index_path = 0;
-							char * fich_to_print = malloc (index_chemin_a_explorer - index_path +2);
-							memset(fich_to_print,0,index_chemin_a_explorer-index_path+1);
+							char * fich_to_print = calloc (index_chemin_a_explorer - index_path +4,sizeof(char));
 							strncpy(fich_to_print,&chemin_a_explorer[index_path], index_chemin_a_explorer - index_path);
-							fich_to_print[index_chemin_a_explorer-index + 1] = '\0';
+							fich_to_print[index_chemin_a_explorer-index_path + 1] = '\0';
 							int d = 0;
 							for (; d < index_to_print;d++)
 							{
@@ -268,14 +267,14 @@ int cd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			if (contexteTarball(nv_repr_courant))
 			{
 				int index_tar = recherche_fich_tar(nv_repr_courant);
-				char *tar = malloc(strlen(nv_repr_courant)+1);
+				char *tar = calloc(strlen(nv_repr_courant)+1,sizeof(char));
 				strncpy(tar,nv_repr_courant,index_tar);
 				//
 				if (tar[strlen(tar)-1]=='/')
 				{
 					tar[strlen(tar)-1] = '\0';
 				}
-				char *file = malloc(strlen(nv_repr_courant)+1);
+				char *file = malloc(strlen(nv_repr_courant)+5);
 				sprintf(file,"%s",&nv_repr_courant[index_tar]);
 				//
 				if (file[strlen(file)-1]=='/')
@@ -457,7 +456,7 @@ int mkdir_tar(char *file, char **options,shell *tsh)
 	if (file[strlen(file)-1]!='/')
 	{
 		strcat(fichier,"/");
-		file[strlen(fichier)-1] = '\0';
+		file[strlen(file)-1] = '\0';
 	}
 	if (cheminValide(fichier,"mkdir")==1)
 	{

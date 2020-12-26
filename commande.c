@@ -132,7 +132,7 @@ non supportee presente dans la liste en argument sinon
 */
 char a_bonnes_options(char *nom_commande,char **options,shell * tsh)
 {
-	if (strcmp(options,"") == 0)
+	if (options == NULL)
 		return '\0';
 	//On explore les commandes pour trouver celle qu'on veut
 	for (int i = 0; i < tsh->nb_cmds; i++)
@@ -327,7 +327,8 @@ int cheminValide(char *path,char * cmd)
 		}
 		//Le sous chemin path_bis est donc valide
 		index_path += 3;
-		sprintf(path_bis,"%s/..",path_bis);
+		strcat(path_bis,"/..");
+		//sprintf(path_bis,"%s/..",path_bis);
 		decoup_fich();
 		while (index_path < chemin_length)
 		{
