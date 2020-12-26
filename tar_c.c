@@ -272,7 +272,7 @@ char **affichage_ls_l(char ** to_print,char * argument,int nb_files,char **list)
 		char * time_fich = malloc(1024);
 		time_t date;
 		sscanf(entete.size,"%lo",&taille);
-		sscanf(entete.mtime,"%011lo",&date);
+		sscanf(entete.mtime,"%011o",&date);
 		//Type de fichier
 		char type_file;
 		switch (entete.typeflag - '0') {
@@ -305,7 +305,7 @@ char **affichage_ls_l(char ** to_print,char * argument,int nb_files,char **list)
 				break;
 		}
 		//Calcul date
-		struct tm * tm_t = gmtime(&date);
+		struct tm * tm_t = localtime(&date);
 		int hour = tm_t->tm_hour;
 		int min = tm_t->tm_min;
 		int day = tm_t->tm_mday;
@@ -367,10 +367,14 @@ char **affichage_ls_l(char ** to_print,char * argument,int nb_files,char **list)
 	if (nb_files != 1 || strcmp(to_print[0],&argument[index]))
 	{
 		char * chaine_taille = malloc(sizeof(long) + strlen("\n")+3);
-		printf("%ld\n",nb_blocs_total);
 		int reste = nb_blocs_total % 20;
 		if (reste != 0)
 			nb_blocs_total +=  20 - reste;
+		if (nb_blocs_total % 2 == 0)
+			nb_blocs_total /= 2;
+		else
+			nb_blocs_total = (nb_blocs_total / 2) + 1;
+		sprintf(chaine_taille,"total %ld\n",nb_blocs_total);
 		write(STDOUT_FILENO,chaine_taille,strlen(chaine_taille));
 		free(chaine_taille);
 	}
