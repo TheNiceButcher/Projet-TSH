@@ -132,7 +132,7 @@ non supportee presente dans la liste en argument sinon
 */
 char a_bonnes_options(char *nom_commande,char **options,shell * tsh)
 {
-	if (options == NULL)
+	if (strcmp(options,"") == 0)
 		return '\0';
 	//On explore les commandes pour trouver celle qu'on veut
 	for (int i = 0; i < tsh->nb_cmds; i++)

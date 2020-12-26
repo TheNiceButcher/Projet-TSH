@@ -19,7 +19,7 @@
 Renvoie le shell qui gere les commandes et les options en argument sur les
 tarballs
 */
-shell creation_shell(char **cmd_tarballs,char **option)
+shell creation_shell(char **cmd_tarballs,char **option,int nb_cmds)
 {
 	shell tsh;
 	memset(&tsh, 0, sizeof(shell));
@@ -28,17 +28,33 @@ shell creation_shell(char **cmd_tarballs,char **option)
 	strcat(tsh.repertoire_courant,"/");
 	tsh.quit = 0;
 	tsh.tarball = 0;
-	tsh.cmd_tarballs = cmd_tarballs;
-	tsh.option = option;
-	tsh.nb_cmds = 0;
-	//Calcul du nombre d'options
-	while(cmd_tarballs[tsh.nb_cmds] != NULL)
+	tsh.nb_cmds = nb_cmds;
+	tsh.cmd_tarballs = malloc(nb_cmds*sizeof(char*));
+	tsh.option = malloc(nb_cmds*sizeof(char *));
+	int i = 0;
+	while (i < nb_cmds)
 	{
-		tsh.nb_cmds++;
+		tsh.cmd_tarballs[i] = malloc(strlen(cmd_tarballs[i])+3);
+		sprintf(tsh.cmd_tarballs[i],"%s",cmd_tarballs[i]);
+		tsh.option[i] = malloc(strlen(option[i])+3);
+		sprintf(tsh.option[i],"%s",option[i]);
+		i++;
 	}
-	if (tsh.nb_cmds > 0)
-		tsh.nb_cmds--;
 	return tsh;
+}
+/*
+Libere la memoire occupee par le tsh dont l'adresse est en argument
+*/
+void liberation_shell(shell *tsh)
+{
+	free(tsh->repertoire_courant);
+	for (int i = 0; i < tsh->nb_cmds; i++)
+	{
+		free(tsh->cmd_tarballs[i]);
+		free(tsh->option[i]);
+	}
+	free(tsh->cmd_tarballs);
+	free(tsh->option);
 }
 /*
 Initialise la variable globale "chemin_a_explorer" et ses attributs

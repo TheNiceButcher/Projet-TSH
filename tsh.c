@@ -7,17 +7,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <string.h>
 #include "commande.h"
 #include "shell.h"
-
 int main(int argc, char const *argv[]) {
 	//Structure shell qui repertorie la variable pour sortir du shell, le repertoire courante et si on est dans un tarball
 	char *cmd_tarballs[] = {"cd","ls","cat","mkdir","rmdir","mv","pwd","cp","rm"};
-	char *option[] = {NULL,"-l",NULL,NULL,NULL,NULL,NULL,"-r","-r"};
-	shell tsh = creation_shell(cmd_tarballs,option);
+	char *option[] = {"","-l","","","","","","-r","-r"};
+	shell tsh = creation_shell(cmd_tarballs,option,9);
 	while (tsh.quit == 0)
 	{
 		int nb_arg_cmd; //Stocke le nombre d'arguments de la commande
@@ -28,5 +28,6 @@ int main(int argc, char const *argv[]) {
 			free(liste_argument[i]);
 		free(liste_argument);
 	}
+	liberation_shell(&tsh);
 	return 0;
 }
