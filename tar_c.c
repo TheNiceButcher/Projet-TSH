@@ -55,7 +55,8 @@ char **list_fich(char *tar)
 			{
 				unsigned long taille;
 				sscanf(entete.size,"%lo",&taille);
-				lseek(fd,((taille + 512 -1) / 512)*512,SEEK_CUR);
+				long nb_blocs = ceil(taille / 512.0);
+				lseek(fd,nb_blocs*512,SEEK_CUR);
 			}
 			taille_archive++;
 		}
@@ -89,7 +90,8 @@ struct posix_header recuperer_entete(char *tar,char *file)
 		}
 		unsigned long taille;
 		sscanf(entete.size,"%lo",&taille);
-		lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+		long nb_blocs = ceil(taille / 512.0);
+		lseek(fd,nb_blocs*512,SEEK_CUR);
 	}
 	memset(&entete,0,BLOCKSIZE);
 	close(fd);
@@ -204,7 +206,8 @@ time_t recherche_date_modif(char *tar,char *repr)
 		}
 		unsigned long taille;
 		sscanf(entete.size,"%lo",&taille);
-		lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+		long nb_blocs = ceil(taille / 512.0);
+		lseek(fd,nb_blocs*512,SEEK_CUR);
 	}
 	if (last_modif==0)
 	{
@@ -453,7 +456,8 @@ int affiche_fichier_tar(char *tar,char*file)
 			}
 			unsigned long taille;
 			sscanf(entete.size,"%lo",&taille);
-			lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+			long nb_blocs = ceil(taille / 512.0);
+			lseek(fd,nb_blocs*512,SEEK_CUR);
 
 
 		}
@@ -529,7 +533,8 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 					return 0;
 				}
 				sscanf(entete.size,"%lo",&taille);
-				lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+				long nb_blocs = ceil(taille / 512.0);
+				lseek(fd,nb_blocs*512,SEEK_CUR);
 				contenu_dossier++;
 			}
 			//Sinon on continue de l'ecrire
@@ -663,8 +668,9 @@ int creation_repertoire_tar(char*tar,char*repr)
 		if (hd2.name[0] != '\0')
 		{
 			sscanf(hd2.size,"%o",&taille);
-			nb_blocs += 1 + ((taille + 512 - 1) / 512);
-			lseek(fd,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+			long nb_blocs_fich = ceil(taille / 512.0);
+			nb_blocs += 1 + nb_blocs_fich;
+			lseek(fd,nb_blocs_fich*512,SEEK_CUR);
 		}
 		else
 		{

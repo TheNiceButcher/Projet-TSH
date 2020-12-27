@@ -107,8 +107,9 @@ int ls(char *file, char **options,shell *tsh)
 			else
 			{
 				int nb_fich_list = 0;
-				char *file_to_find = malloc(strlen(simplified_file)+1);
+				/*char *file_to_find = malloc(strlen(simplified_file)+1);
 				strncpy(file_to_find,&simplified_file[index],strlen(simplified_file)-index + 1);
+				file_to_find[strlen(simplified_file)-index + 1] = '\0'*/
 				while (list[nb_fich_list]!=NULL)
 					nb_fich_list++;
 				//Recherche du fichier dans le fichier .tar
@@ -119,6 +120,7 @@ int ls(char *file, char **options,shell *tsh)
 				{
 					if (strncmp(list[k],file_to_find,strlen(file_to_find))==0)
 					{
+						//Si
 						if (list[k][strlen(simplified_file) - index] == '\0'||list[k][strlen(simplified_file) - index] == '/')
 						{
 							int jpp = strlen(file_to_find) + 1;
@@ -358,7 +360,7 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 {
     //on a pas a verifier si file et destination existe deja car on la deja verifié a traitement_commandeTar
     //par contre on fais le test s'il sont des .tar ou des fichier dans des .tar
-     if (contexteTarball(file))
+    /* if (contexteTarball(file))
      {
 	    	   int index = recherche_fich_tar(file);
 			    //Fichier source est un .tar
@@ -376,7 +378,7 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 				        //fichier destination est un .tar
 				        if(index_d == strlen(destination))
 				        {
-				           
+
 			           	          	char *tar_file = malloc(strlen(file));
 				                 	strncpy(tar_file,file,index);
 			           	    	    char *file_to_cp = malloc(strlen(file));
@@ -391,7 +393,7 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 		                            while ((lus = read(fd_tar_file,&entete,512))>0)
 		                            {
 			                            if (entete.name[0] != '\0')
-			                             { 
+			                             {
 			                                //si on trouve le fichier voulu
 			                                  if (entete.name[0] ==file_to_cp)
 			                                  {
@@ -413,7 +415,7 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 
 	                                                if (!check_checksum(&hd))
 		                             	               perror("Checksum impossible");
-		                             	               
+
 		                             	          //compter le nombre de block dans le .tar en destinaton
 		                             	            int nb_blocs_dest=0;
 		                             	            while ((read(fd_dest,&header,512))>0)
@@ -429,18 +431,18 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 		                                                  		break;
 		                             	                     }
 	                       	                          }
-	                       	                          
-	                        	                
+
+
                                                //copier le contenue dans la nouvelle entete puis faire un write dans le fichier en destination
                                                write(fd_dest,&entete2,512);
                                                nb_blocs_dest += 1;
                                                int reads=0;
 			                                  	while ((lus=read(fd_tar_file,&entete2,BLOCKSIZE)) > 0)
 	                                              {
-	                                                  
+
 	                                                  reads+=lus;
 	                                                  if(reads <= taille)
-                                                     {	                                                  
+                                                     {
 	                                                   lseek(fd_dest,nb_blocs_dest*512,SEEK_CUR);
 		                                               write(fd_dest,&entete2,lus);
 		                                               b_blocs_dest += 1 ;
@@ -451,11 +453,11 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
                                                      }
 		                                          }
 		                                         close(fd_dest);
-	   	                                       
+
 		                                         close(fd_tar_file);
 
 			                                     return 0;
-			                                      
+
 			                                  }
 			                                  else
 			                                  {
@@ -463,13 +465,13 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 				                                nb_blocs += 1 + ((taille + 512 - 1) / 512);
 			                              	    lseek(fd_tar_file,((taille + 512 - 1) / 512)*512,SEEK_CUR);
 			                                  }
-			                                 
+
 			                             }
 		                            }
 		                            close(fd_dest);
 		                            close(fd_tar_file);
-			                                  
-				                               
+
+
 
 				        }
                       //fichier destination est dans un .tar
@@ -490,10 +492,10 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 		                          //cherche le fichier source en le fichier .tar puis remplire son entete
 		                            while ((lus = read(fd_tar_file,&entete,512))>0)
 		                            {
-		                                
+
 			                            if (entete.name[0] != '\0')
 			                             {
-			                                 
+
 			                                //si on trouve le fichier voulu
 			                                  if (entete.name[0] ==file_to_cp)
 			                                  {
@@ -515,7 +517,7 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 
 	                                                if (!check_checksum(&hd))
 	                                                perror("Checksum impossible");
-		                             	               
+
 		                             	          //chercher le block du ficher destinaton dans le .tar
 		                             	            int nb_blocs_dest=0;
 		                             	            while ((read(fd_dest,&header,512))>0)
@@ -533,7 +535,7 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 			                                                 	   	sscanf(header.size,"%o",&taille);
 			                                                 	    nb_blocs_dest += 1 + ((taille + 512 - 1) / 512);
 			                                                 	    lseek(fd_dest,((taille + 512 - 1) / 512)*512,SEEK_CUR);
-			                                                 	    
+
 			                                                 	    write(fd_dest,&entete2,512);
                                                                     nb_blocs_dest += 1;
                                                                     int reads=0;
@@ -545,19 +547,19 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 	                                                                      lseek(fd_dest,nb_blocs_dest*512,SEEK_CUR);
 		                                                                  write(fd_dest,&entete2,lus);
 		                                                            	  nb_blocs_dest += 1 ;
-	                                                                     } 
+	                                                                     }
 	                                                                     else
 	                                                                     {
 	                                                                         break;
 	                                                                     }
-	                                                                     
+
 	                                                                }
 		                                                            header.size+=entete2.size+512;
 		                                                            header.typeflag=S_IFDIR    ;
 			                                                 	      close(fd_dest);
 		                                                              close(fd_tar_file);
 			                                                          return 0;
-			                                                 	    
+
 			                                                 	}
 		                                                   	}
 		                         	                         else
@@ -565,7 +567,7 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 		                                                  		break;
 		                             	                     }
 	                       	                          }
-				           
+
 				                             }
 				                             else
 			                                  {
@@ -574,16 +576,16 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 			                              	    lseek(fd_tar_file,((taille + 512 - 1) / 512)*512,SEEK_CUR);
 			                                  }
 				                        }
-		                                
+
 		                            }
 		                            close(fd_dest);
 		                            close(fd_tar_file);
 				                    return 0;
-		                                
+
 		                            }
-				        
+
 				    }
-				  //fichier destination n'est pas un contexte tar  
+				  //fichier destination n'est pas un contexte tar
 				    else
 				    {
 				       char *tar_file = malloc(strlen(file));
@@ -595,10 +597,10 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 	                   struct posix_header entete;
 					   struct posix_header header;
 					   unsigned int lus,taille = 0;
-					   //cherche le fichier source dans le fichier .tar 
+					   //cherche le fichier source dans le fichier .tar
 		                 while ((lus = read(fd_tar_file,&entete,512))>0)
 		                 {
-		                     
+
 		                      if (entete.name[0] != '\0')
 			                  {
 			                     //si on trouve le fichier voulu
@@ -612,15 +614,15 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 		                                 (lus=read(fd_tar_file,&entete,512));
 		                                 write(fd_dest,&entete,lus);
 		                                 reads+=lus;
-		                                 
+
 		                              }
-		                             
-		                            
+
+
 		                              close(fd_dest);
 		                              close(fd_tar_file);
-		                              return 0;  
-			                                      
-			                                      
+		                              return 0;
+
+
 	                               }
 	                               else
 			                       {
@@ -628,23 +630,23 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 			                            nb_blocs += 1 + ((taille + 512 - 1) / 512);
 	                            	    lseek(fd_tar_file,((taille + 512 - 1) / 512)*512,SEEK_CUR);
 			                       }
-			                                 
+
 			                  }
-				       
+
 				        }
-				        
+
                               close(fd_dest);
           		              close(fd_tar_file);
-		                      return 0;  
+		                      return 0;
 
 				    }
-				}		
+				}
      }
      //ficher source n'est pas un context tarball
      else
      {
          printf("en construction");
-     }
+     }*/
 	printf("cp en construction\n");
 	return 0;
 }
