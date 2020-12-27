@@ -761,7 +761,7 @@ int mkdir_tar(char *file, char **options,shell *tsh)
 	//-1 signifie que le chemin ne contient pas de tarball
 	if (index == -1)
 	{
-		if (mkdir(fichier, S_IRWXU || S_IRWXG || S_IROTH || S_IXOTH) == -1)
+		if (mkdir(fichier, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1)
 		{
 			char * error = malloc(strlen(file) + 20);
 			sprintf(error,"mkdir %s:",file);
@@ -772,11 +772,29 @@ int mkdir_tar(char *file, char **options,shell *tsh)
 			free(name_repr);
 			return 1;
 		}
-		return 1;
+		return 0;
 	}
+	//Creation d'un tarball
 	if (index == strlen(fichier))
 	{
 		printf("Création de .tar %s\n",fichier);
+		fichier[index-1] = '\0';
+		int fd = creat(fichier, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+		if (fd == -1)
+		{
+			char * error = malloc(strlen(file) + 15);
+			sprintf(error,"mkdir %s", file);
+			perror(error);
+			free(error);
+			return 1;
+		}
+		char buffer[512];
+		memset(buffer,0,512);
+		for(int i = 0; i < 20; i++)
+		{
+			read(fd,buffer,512);
+		}
+		close(fd);
 	}
 	else
 	{

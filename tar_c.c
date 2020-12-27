@@ -282,7 +282,7 @@ char **affichage_ls_l(char ** to_print,char * argument,int nb_files,char **list)
 		if (entete.name[0] == '\0')
 		{
 			entete.typeflag = '5';
-			sprintf(entete.size,"%lo",0);
+			sprintf(entete.size,"%lo",(long unsigned int)0);
 			sprintf(entete.mode,"0000777");
 			sprintf(entete.mtime,"%011lo",recherche_date_modif(tar,chemin_absolu));
 			sprintf(entete.uid,"%d",getuid());
