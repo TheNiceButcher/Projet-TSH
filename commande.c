@@ -776,11 +776,12 @@ int redirection_input(char **liste_argument, int nb_arg_cmd, shell *tsh)
 	int in, out;
 	char *file = malloc(1024);
 	char *file_to = malloc(1024);
+	char **options = recherche_option(liste_argument,nb_arg_cmd);
 	strcat(file, tsh->repertoire_courant);
 	strcat(file, "/");
 	strcat(file, liste_argument[nb_arg_cmd-1]);
-	if(strcmp(liste_argument[1], "/")){
-
+	if(strcmp(liste_argument[1], "/") == 0){
+		
 	}else{
 		strcat(file_to, tsh->repertoire_courant);
 		strcat(file_to, "/");
@@ -800,9 +801,9 @@ int redirection_input(char **liste_argument, int nb_arg_cmd, shell *tsh)
 		{
 			dup2(in, 0);
 			dup2(out, 1);
-			if (contexteTarball(file_to))
+			if (contexteTarball(liste_argument[1]))
 			{
-				//cat(liste_argument, nb_arg_cmd - 2, tsh);
+				cat(liste_argument[1], options, tsh);
 			}
 			else
 			{
@@ -838,6 +839,33 @@ int redirection_input(char **liste_argument, int nb_arg_cmd, shell *tsh)
 			return 1;
 		}
 		if (fils == 0){
+			dup2(out, 1);
+			if(nb_arg_cmd == 4){
+				if(contexteTarball(liste_argument[1])){
+					ls(liste_argument[1], options, tsh);
+				}else{
+					execlp(liste_argument[0], liste_argument[0], liste_argument[1], NULL, NULL);
+				}
+			}else if(nb_arg_cmd == 5){
+				if(contexteTarball(liste_argument[2])){
+					ls(liste_argument[2], options, tsh);
+				}else{
+					execlp(liste_argument[0], liste_argument[0], liste_argument[1], liste_argument[2], NULL);
+				}
+			}else if(nb_arg_cmd == 3){
+				execlp(liste_argument[0], liste_argument[0], NULL);
+			}
+			close(out);
+			exit(0);
+		}
+		wait(NULL);
+	}else if(strcmp(liste_argument[0], "pwd") == 0){
+		int fils = fork();
+		if(fils == -1){
+			perror("fork redirection");
+			return 1;
+		}
+		if(fils == 0){
 			dup2(out, 1);
 			close(out);
 			execlp(liste_argument[0], liste_argument[0], NULL);
