@@ -28,12 +28,15 @@ char **list_fich(char *tar)
 {
 	int taille_archive_max = 20;
 	int taille_archive = 0;
+	//Liste des fichiers presents dans le tar
 	char **liste_fichier = malloc(taille_archive_max*sizeof(char*));
 	int fd,lus;
 	struct posix_header entete;
 	fd = open(tar,O_RDONLY);
 	if (fd==-1)
 	{
+		perror(tar);
+		free(liste_fichier);
 		return NULL;
 	}
 	//Tant qu'on peut lire dans le fichier tar, on le fait et on le stocke dans une variable posix_header

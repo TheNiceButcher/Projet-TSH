@@ -27,6 +27,7 @@ int ls(char *file, char **options,shell *tsh)
 	char ** to_print;
 	//Son index
 	int index_to_print = 0;
+	//fichier tar
 	char * tar = calloc(strlen(simplified_file)+2,sizeof(char));
 	char **list;
 	//ls sur un Fichier .tar
@@ -71,7 +72,7 @@ int ls(char *file, char **options,shell *tsh)
 					mot[index_chemin_a_explorer] = '\0';
 
 					to_print[index_to_print] = malloc(strlen(mot)+1);
-					strcpy(to_print[index_to_print],mot);
+					sprintf(to_print[index_to_print],"%s",mot);
 					index_to_print++;
 					free(mot);
 					free_chemin_explorer();
@@ -86,86 +87,87 @@ int ls(char *file, char **options,shell *tsh)
 		//Recherche fichier .tar contenant le fichier
 		int index = recherche_fich_tar(simplified_file);
 		strncpy(tar,simplified_file,index);
-		if (tar == NULL)
-			printf("impossible\n");
+		tar[index - 1] = '\0';
+		list = list_fich(tar);
+		char *file_to_find = malloc(strlen(simplified_file)+1);
+		strncpy(file_to_find,&simplified_file[index],strlen(simplified_file)-index + 1);
+		if (list == NULL)
+		{
+			char *error = malloc(strlen(tar)+strlen("ls \n"));
+			sprintf(error,"ls %s\n",tar);
+			perror(error);
+			free(error);
+			free(tar);
+			free(simplified_file);
+			return 1;
+		}
 		else
 		{
-			tar[index - 1] = '\0';
-			list = list_fich(tar);
-			char *file_to_find = malloc(strlen(simplified_file)+1);
-			strncpy(file_to_find,&simplified_file[index],strlen(simplified_file)-index + 1);
-			if (list == NULL)
+			int nb_fich_list = 0;
+			while (list[nb_fich_list]!=NULL)
+				nb_fich_list++;
+			//Recherche du fichier dans le fichier .tar
+			int k = 0;
+			to_print = calloc((nb_fich_list + 1),sizeof(char*));
+			//Parcours des fichiers du tar
+			while (list[k]!=NULL)
 			{
-				char *error = malloc(strlen(tar)+strlen("ls \n"));
-				sprintf(error,"ls %s\n",tar);
-				perror(error);
-				free(error);
-				free(tar);
-				free(simplified_file);
-				return 1;
-			}
-			else
-			{
-				int nb_fich_list = 0;
-				while (list[nb_fich_list]!=NULL)
-					nb_fich_list++;
-				//Recherche du fichier dans le fichier .tar
-				int k = 0;
-				to_print = calloc((nb_fich_list + 1),sizeof(char*));
-				//Parcours des fichiers du tar
-				while (list[k]!=NULL)
+				//On verifie si le fichier courant commence de la meme facon
+				if (strncmp(list[k],file_to_find,strlen(file_to_find))==0)
 				{
-					if (strncmp(list[k],file_to_find,strlen(file_to_find))==0)
+					/*On verifie si le fichier courant est bien le fichier sur lequel on appelle
+					ls ou encore s'il appartient bien a ce fichier.
+					On fait ca pour eviter de compter un fichier qui commence de la meme
+					facon mais qui reste different*/
+					if (list[k][strlen(simplified_file) - index] == '\0'||list[k][strlen(simplified_file) - index] == '/')
 					{
-						//Si
-						if (list[k][strlen(simplified_file) - index] == '\0'||list[k][strlen(simplified_file) - index] == '/')
+						//On recupere alors soit un fichier soit un repertoire
+						int jpp = strlen(file_to_find) + 1;
+						init_chemin_explorer(&list[k][jpp]);
+						decoup_fich("");
+						int index_path = 0;
+						char * fich_to_print = calloc (index_chemin_a_explorer - index_path +4,sizeof(char));
+						strncpy(fich_to_print,&chemin_a_explorer[index_path], index_chemin_a_explorer - index_path);
+						fich_to_print[index_chemin_a_explorer-index_path + 1] = '\0';
+						int d = 0;
+						//On verifie si le fichier est deja present dans la liste des elements a afficher
+						for (; d < index_to_print;d++)
 						{
-							int jpp = strlen(file_to_find) + 1;
-							init_chemin_explorer(&list[k][jpp]);
-							decoup_fich("");
-							int index_path = 0;
-							char * fich_to_print = calloc (index_chemin_a_explorer - index_path +4,sizeof(char));
-							strncpy(fich_to_print,&chemin_a_explorer[index_path], index_chemin_a_explorer - index_path);
-							fich_to_print[index_chemin_a_explorer-index_path + 1] = '\0';
-							int d = 0;
-							for (; d < index_to_print;d++)
-							{
-								if (index_chemin_a_explorer==index_path) continue;
-								if (strcmp(fich_to_print,to_print[d])==0)
-									break;
-							}
-							//O
-							if (d == index_to_print)
-							{
-								//On n'affiche pas le nom du dossier sur lequel on appelle ls
-								if (strncmp(list[k],file_to_find,strlen(file_to_find))==0 && list[k][strlen(list[k])-1] == '/')
-								{
-									//Dossier
-									if(index_chemin_a_explorer==index_path)
-									{
-										k++;
-										free(fich_to_print);
-										free_chemin_explorer();
-										continue;
-									}
-								}
-								//ls sur un fichier != repertoire
-								if (index_chemin_a_explorer==index_path)
-								{
-									sprintf(fich_to_print,"%s",file_to_find);
-								}
-								to_print[index_to_print] = malloc(strlen(fich_to_print)+2);
-
-								sprintf(to_print[index_to_print],"%s",fich_to_print);
-
-								index_to_print++;
-							}
-							free(fich_to_print);
-							free_chemin_explorer();
+							if (index_chemin_a_explorer==index_path) continue;
+							if (strcmp(fich_to_print,to_print[d])==0)
+								break;
 						}
+						//On est donc sur que le fichier n'est pas deja dans la iste
+						if (d == index_to_print)
+						{
+							//On n'affiche pas le nom du dossier sur lequel on appelle ls
+							if (strncmp(list[k],file_to_find,strlen(file_to_find))==0 && list[k][strlen(list[k])-1] == '/')
+							{
+								//Dossier
+								if(index_chemin_a_explorer==index_path)
+								{
+									k++;
+									free(fich_to_print);
+									free_chemin_explorer();
+									continue;
+								}
+							}
+							//ls sur un fichier != repertoire
+							if (index_chemin_a_explorer==index_path)
+							{
+								sprintf(fich_to_print,"%s",file_to_find);
+							}
+							to_print[index_to_print] = malloc(strlen(fich_to_print)+2);
+
+							sprintf(to_print[index_to_print],"%s",fich_to_print);
+
+							index_to_print++;
+						}
+						free(fich_to_print);
+						free_chemin_explorer();
 					}
-					k++;
 				}
+				k++;
 			}
 		}
 
