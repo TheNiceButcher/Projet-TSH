@@ -15,6 +15,7 @@
 #include "shell.h"
 #include "commande.h"
 #include "tar_c.h"
+#include "tar.h"
 int ls(char *file, char **options,shell *tsh);
 int cd(char **liste_argument,int nb_arg_cmd,shell *tsh);
 int pwd(char **liste_argument,int nb_arg_cmd,shell *tsh);

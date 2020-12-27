@@ -1,6 +1,5 @@
 #ifndef TAR_C_H
 #define TAR_C_H
-#include <math.h>
 //Option de supprimer_fichier_tar
 #define RM 0 //rm sans option
 #define RM_R 1 //rm avec l'option -r

@@ -106,6 +106,7 @@ struct posix_header recuperer_entete(char *tar,char *file)
 	}
 	memset(&entete,0,BLOCKSIZE);
 	close(fd);
+	free(file2);
 	return entete;
 }
 /*

@@ -342,7 +342,7 @@ int cheminValide(char *path,char * cmd)
 			}
 			strcat(path_bis,"/..");
 			index_path = index_chemin_a_explorer;
-			path_bis[index_path] = '\0'; 
+			path_bis[index_path] = '\0';
 			decoup_fich();
 			free(fich);
 		}
@@ -466,7 +466,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				destination = malloc(strlen(liste_argument[i])+
 				strlen(tsh->repertoire_courant)+3);
 				index_destination = i;
-				sprintf(destination,"%s/%s",tsh->repertoire_courant,liste_argument[i]);
+				sprintf(destination,"%s%s",tsh->repertoire_courant,liste_argument[i]);
 				break;
 			}
 		}
