@@ -180,7 +180,7 @@ int nombre_sous_dossier(char *repr,char *tar,char **list)
 		{
 			init_chemin_explorer(&list[i][strlen(repr)]);
 			int index = decoup_fich();
-			if (chemin_a_explorer[index-1] == '/')
+			if (index != 0 && chemin_a_explorer[index-1] == '/')
 			{
 				nb_ss_dossier++;
 			}
@@ -381,6 +381,7 @@ char **affichage_ls_l(char ** to_print,char * argument,int nb_files,char **list)
 				strcpy(month,"dec.");
 				break;
 		}
+		month[4] = '\0';
 		if (hour < 10)
 			sprintf(time_fich,"%s %d 0%d",month, day, hour);
 		else
@@ -497,6 +498,7 @@ int supprimer_fichier_tar(char *tar,char *file,int option)
 	char *file2 = malloc(strlen(file)+3);
 	strcpy(file2,file);
 	strcat(file2,"/");
+	file2[strlen(file2) + 1] = '\0';
 	struct posix_header entete;
 	memset(&entete,0,BLOCKSIZE);
 	fd = open(tar,O_RDWR);

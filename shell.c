@@ -138,6 +138,7 @@ char *simplifie_chemin(char *chemin)
 		{
 			char * fich = calloc(index_chemin_a_explorer-index_prec+1, sizeof(char));
 			strncpy(fich,&chemin_a_explorer[index_prec],index_chemin_a_explorer-index_prec);
+			fich[index_chemin_a_explorer - index_prec] = '\0';
 			//Présence .
 			if (strcmp(fich,".") == 0)
 			{

@@ -328,7 +328,7 @@ int cheminValide(char *path,char * cmd)
 		//Le sous chemin path_bis est donc valide
 		index_path += 3;
 		strcat(path_bis,"/..");
-		//sprintf(path_bis,"%s/..",path_bis);
+		path_bis[index_path] = '\0';
 		decoup_fich();
 		while (index_path < chemin_length)
 		{
@@ -340,9 +340,9 @@ int cheminValide(char *path,char * cmd)
 				free(fich);
 				break;
 			}
-			//sprintf(path_bis,"%s/..",path_bis);
 			strcat(path_bis,"/..");
 			index_path = index_chemin_a_explorer;
+			path_bis[index_path] = '\0'; 
 			decoup_fich();
 			free(fich);
 		}
@@ -781,7 +781,7 @@ int redirection_input(char **liste_argument, int nb_arg_cmd, shell *tsh)
 	strcat(file, "/");
 	strcat(file, liste_argument[nb_arg_cmd-1]);
 	if(strcmp(liste_argument[1], "/") == 0){
-		
+
 	}else{
 		strcat(file_to, tsh->repertoire_courant);
 		strcat(file_to, "/");

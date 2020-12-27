@@ -789,6 +789,7 @@ int mkdir_tar(char *file, char **options,shell *tsh)
 		if (repr_to_create[strlen(repr_to_create)-1] != '/')
 		{
 			strcat(repr_to_create,"/");
+			repr_to_create[strlen(fichier)-index] = '\0';
 		}
 		char * parent = malloc(strlen(file)+1);
 		sprintf(parent,"%s",repr_to_create);
