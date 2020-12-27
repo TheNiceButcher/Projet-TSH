@@ -75,8 +75,16 @@ char **list_fich(char *tar)
 struct posix_header recuperer_entete(char *tar,char *file)
 {
 	struct posix_header entete;
-	//memset(&entete,0,BLOCKSIZE);
+	memset(&entete,0,BLOCKSIZE);
 	int fd = open(tar,O_RDONLY);
+	if (fd == -1)
+	{
+		char *erreur = malloc(strlen(tar) + strlen(file) + 50);
+		sprintf(erreur,"recuperer_entete %s %s erreur :\n",tar,file);
+		perror(erreur);
+		free(erreur);
+		return entete;
+	}
 	//On verifie le cas ou l'utilisateur a mis le nom du dossier sans le / final
 	char * file2 = malloc(strlen(file)+2);
 	sprintf(file2,"%s/",file);
@@ -189,6 +197,14 @@ dans tar
 time_t recherche_date_modif(char *tar,char *repr)
 {
 	int fd = open(tar,O_RDONLY);
+	if (fd == -1)
+	{
+		char *erreur = malloc(strlen(tar) + strlen(repr) + 50);
+		sprintf(erreur,"recherche_date_modif %s %s erreur :\n",tar,repr);
+		perror(erreur);
+		free(erreur);
+		return 0;
+	}
 	lseek(fd,0,SEEK_SET);
 	time_t last_modif = 0;
 	struct posix_header entete;
@@ -433,7 +449,7 @@ int affiche_fichier_tar(char *tar,char*file)
 					free(error);
 					return 0;
 				}
-				char buffer[512];
+				char buffer[BLOCKSIZE];
 				unsigned long taille;
 				sscanf(entete.size,"%lo",&taille);
 				int i = 0;
@@ -638,8 +654,8 @@ int creation_repertoire_tar(char*tar,char*repr)
 	int fd = open(tar,O_RDONLY);
 	if(fd == -1)
 	{
-		char *error = malloc(strlen(tar)+strlen("Erreur creation_repertoire_tar ")+2);
-		sprintf(error,"Erreur creation_repertoire_tar %s",tar);
+		char *error = malloc(strlen(tar)+strlen("Erreur creation_repertoire_tar \n")+2);
+		sprintf(error,"Erreur creation_repertoire_tar %s\n",tar);
 		perror(error);
 		free(error);
 		return 0;

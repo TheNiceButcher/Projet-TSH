@@ -107,9 +107,6 @@ int ls(char *file, char **options,shell *tsh)
 			else
 			{
 				int nb_fich_list = 0;
-				/*char *file_to_find = malloc(strlen(simplified_file)+1);
-				strncpy(file_to_find,&simplified_file[index],strlen(simplified_file)-index + 1);
-				file_to_find[strlen(simplified_file)-index + 1] = '\0'*/
 				while (list[nb_fich_list]!=NULL)
 					nb_fich_list++;
 				//Recherche du fichier dans le fichier .tar
