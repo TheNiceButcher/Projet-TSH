@@ -726,7 +726,7 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
                                         break;
                                     }
                                  }
-                                 entete.size+=buf_file.st_size;
+                              //   entete.size+=buf_file.st_size;
                                  entete.typeflag=S_IFDIR    ;
                                  close(fd_dest);
                                  close(fd_file);
@@ -738,12 +738,7 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 		                      break;
     	                  }
 	                 } 
-					 
-					 
-				    
-				    
-				            
-				}
+	           }
              
          }
          
