@@ -358,57 +358,203 @@ int pwd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 }
 int cp(char *file,char * destination,char ** options,shell *tsh)
 {
-	//on a pas a verifier si file et destination existe deja car on la deja verifié a traitement_commandeTar
-	//par contre on fais le test s'il sont des .tar ou des fichier dans des .tar
-	if (contexteTarball(file))
-	{
-		int index = recherche_fich_tar(file);
-		//Fichier source est un .tar
-		if (index == strlen(file))
-		{
-			printf("en contruction");
-		}
-		//Fichier source est dans un .tar
-		else
-		{
-			if(contexteTarball(destination))
-			{
-				int index_d = recherche_fich_tar(destination);
-				//fichier destination est un .tar
-				if(index_d == strlen(destination))
+    //on a pas a verifier si file et destination existe deja car on la deja verifié a traitement_commandeTar
+    //par contre on fais le test s'il sont des .tar ou des fichier dans des .tar
+   if (contexteTarball(file))
+	 {
+		 int index = recherche_fich_tar(file);
+		 //Fichier source est un .tar
+		 if (index == strlen(file))
+		 {
+		     if(contexteTarball(destination))
+		     {
+		         int index_d = recherche_fich_tar(destination);
+		         //fichier destination est un .tar
+		         if(index_d == strlen(destination))
+		         {
+
+		            int fd_file = open(file,O_RDONLY);
+			        struct posix_header entete;
+			        struct posix_header header;
+		            char *buf_file = malloc(sizeof(struct stat));
+		            stat(fd_file, buf_file);
+	                memset(&entete,0,sizeof(struct posix_header));
+
+	                //construire le header
+
+	                sprintf(entete.name,"%s",file);
+	             	sprintf(entete.mode,buf_file.st_mode);
+                    switch (buf_file.st_mode & S_IFMT)
+                    {
+                        case S_IFBLK:  entete.typeflag=S_IFBLK    ;   break;
+	                    case S_IFCHR:  entete.typeflag=S_IFCHR    ;   break;
+                        case S_IFDIR:  entete.typeflag=S_IFDIR    ;   break;
+                        case S_IFIFO:  entete.typeflag=S_IFIFO    ;   break;
+	                    case S_IFLNK:  entete.typeflag=S_IFLNK    ;   break;
+                        case S_IFREG:  entete.typeflag=S_IFREG    ;   break;
+                        case S_IFSOCK: entete.typeflag=S_IFSOCK   ;   break;
+	                    default:        break;
+	                }
+
+
+	               	sprintf(entete.mtime,"%011lo",time(NULL));
+	               	sprintf(entete.uid,"%d",buf_file.st_uid);
+	               	sprintf(entete.gid,"%d",buf_file.st_gid);
+	              	sprintf(entete.uname,"%s",getpwuid(buf_file.st_gid)->pw_name);
+	              	sprintf(entete.gname,"%s",getgrgid(buf_file.st_gid)->gr_name);
+	               	sprintf(entete.size,"%011o",buf_file.st_size);
+	               	strcpy(entete.magic,"ustar");
+	               	set_checksum(&entete);
+	               	if (!check_checksum(&entete))
+                 	perror("Checksum impossible");
+                 	fd_dest = open(destination,O_RDWR);
+
+                    //compter le nombre de block dans le fichier en destinaton
+
+                    int nb_blocs_dest=0;
+       	            while ((read(fd_dest,&header,512))>0)
+       	            {
+                      if (header.name[0] != '\0')
+                      {
+	                  	sscanf(header.size,"%o",&taille);
+	                  	nb_blocs_dest += 1 + ((taille + 512 - 1) / 512);
+	                 	lseek(fd_dest,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+	                 	}
+	                  else
+                       {
+                           break;
+		                }
+		            }
+	               //copier le contenue dans la nouvelle entete puis faire un write dans le fichier en destination
+	               write(fd_dest,&entete,512);
+	               nb_blocs_dest += 1;
+	               int reads=0;
+	               sscanf(entete.size,"%o",&taille);
+	               while ((lus=read(fd_file,&entete,BLOCKSIZE)) > 0)
+	               {
+                     reads+=lus;
+                     if(reads <= taille)
+                      {
+                          lseek(fd_dest,nb_blocs_dest*512,SEEK_CUR);
+	                      write(fd_dest,&entete,lus);
+	                      nb_blocs_dest += 1 ;
+                      }
+                      else
+                      {
+                          break;
+                      }
+                   }
+		          close(fd_dest);
+		          close(fd_tar_file);
+		          return 0;
+
+
+
+		         }
+
+		         //fichier destination est dans un tar
+				else
 				{
-					char *tar_file = malloc(strlen(file));
-					strncpy(tar_file,file,index);
-					char *file_to_cp = malloc(strlen(file));
-					strcpy(file_to_cp,&file[index]);
-					int fd_tar_file = open(tar_file,O_RDWR);
-					int fd_dest = open(destination,O_RDWR);
-					struct posix_header entete;
-					struct posix_header header;
-					unsigned int lus,taille = 0;
-					int nb_blocs = 0;
-					//cherche le fichier source en le fichier .tar puis construire une entete identique a son entete
-					while ((lus = read(fd_tar_file,&entete,512))>0)
-					{
-						if (entete.name[0] != '\0')
-						{
-							//si on trouve le fichier voulu
-							if (strcmp(entete.name,file_to_cp) == 0)
-							{
-								struct posix_header entete2;
-								memset(&entete2,0,sizeof(struct posix_header));
+				     fd_file = open(file,O_RDONLY);
+    				 char *tar_dest = malloc(strlen(destination));
+    				 char *dest=malloc(strlen(destination));
+	            	 strncpy(tar_dest,destination,index_d);
+	            	 strcpy(dest,&destination[index_d]);
+		             fd_dest = open(tar_dest,O_RDWR);
+					 struct posix_header entete;
+					 struct posix_header entete2;
+					  //chercher le block du ficher destinaton dans le .tar
+		             int nb_blocs_dest=0;
+		             while ((read(fd_dest,&enteter,512))>0)
+		             {
+		                 if (entete.name[0] != '\0')
+		                 {
+		                     if (entete.name[0] != dest)
+		                     {
+		                         sscanf(entete.size,"%o",&taille);
+		                         nb_blocs_dest += 1 + ((taille + 512 - 1) / 512);
+		                         lseek(fd_dest,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+		                     }
+		                     else
+		                     {
+		                         char *buf_file = malloc(sizeof(struct stat));
+		                         stat(fd_file, buf_file);
+		                         sscanf(buf_file.st_size,"%o",&taille);
+		                         nb_blocs_dest += 1 + ((taille + 512 - 1) / 512);
+		                         lseek(fd_dest,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+		                         int reads=0;
+		                         while ((lus=read(fd_file,&entete2,BLOCKSIZE)) > 0)
+		                         {
+		                             reads=+lus;
+		                             if(reads <= taille)
+		                             {
+		                                 lseek(fd_dest,nb_blocs_dest*512,SEEK_CUR);
+		                                 write(fd_dest,&entete2,lus);
+		                                 nb_blocs_dest += 1 ;
+	                                 }
+	                                 else
+                                    {
+                                        break;
+                                    }
+                                 }
+                              //   entete.size+=buf_file.st_size;
+                                 entete.typeflag=S_IFDIR    ;
+                                 close(fd_dest);
+                                 close(fd_file);
+                                 return 0;
+                             }
+		                  }
+		                  else
+		                  {
+		                      break;
+    	                  }
+	                 }
+	           }
+		     }
 
-								//remplire l'entete du fichier source
-								memcpy(&entete2,&entete,BLOCKSIZE);
-								set_checksum(&entete2);
-								if (!check_checksum(&entete2))
-									perror("Checksum impossible");
 
-								//compter le nombre de block dans le .tar en destinaton
-								int nb_blocs_dest=0;
-								while ((read(fd_dest,&header,512))>0)
-								{
-									if (header.name[0] != '\0')
+
+		//	 printf("en contruction");
+		 }
+		 //Fichier source est dans un .tar
+		 else
+		 {
+			 if(contexteTarball(destination))
+			 {
+				 int index_d = recherche_fich_tar(destination);
+				 //fichier destination est un .tar
+				 if(index_d == strlen(destination))
+				 {
+					 char *tar_file = malloc(strlen(file));
+					 strncpy(tar_file,file,index);
+					 char *file_to_cp = malloc(strlen(file));
+					 strcpy(file_to_cp,&file[index]);
+					 int fd_tar_file = open(tar_file,O_RDWR);
+					 int fd_dest = open(destination,O_RDWR);
+					 struct posix_header entete;
+					 struct posix_header header;
+					 unsigned int lus,taille = 0;
+					 int nb_blocs = 0;
+					 //cherche le fichier source en le fichier .tar puis construire une entete identique a son entete
+					 while ((lus = read(fd_tar_file,&entete,512))>0)
+					 {
+						 if (entete.name[0] != '\0')
+						 {
+							 //si on trouve le fichier voulu
+							 if (strcmp(entete.name,file_to_cp) == 0)
+							 {
+								 struct posix_header entete2;
+								 memset(&entete2,0,sizeof(struct posix_header));
+
+								 //remplire l'entete du fichier source
+								 memcpy(&entete2,&entete,BLOCKSIZE);
+								 set_checksum(&entete2);
+								 if (!check_checksum(&entete2))
+								 		perror("Checksum impossible");
+
+									//compter le nombre de block dans le .tar en destinaton
+									int nb_blocs_dest=0;
+									while ((read(fd_dest,&header,512))>0)
 									{
 										sscanf(header.size,"%o",&taille);
 										nb_blocs_dest += 1 + ((taille + 512 - 1) / 512);
@@ -740,13 +886,156 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 					}
 				}
 			}
+		//ficher source n'est pas un context tarball
+     else
+     {
+         if(contexteTarball(destination))
+         {
+              int index_d = recherche_fich_tar(destination);
+    	       //fichier destination est un .tar
+				if(index_d == strlen(destination))
+		        {
+		            int fd_file = open(file,O_RDONLY);
+			        struct posix_header entete;
+			        struct posix_header header;
+		            char *buf_file = malloc(sizeof(struct stat));
+		            stat(fd_file, buf_file);
+	                memset(&entete,0,sizeof(struct posix_header));
+	                //construire le header
+	                sprintf(entete.name,"%s",file);
+	             	sprintf(entete.mode,buf_file.st_mode);
+	             	//entete.typeflag = mystat.st_mode & ~S_IFMT;
+                    switch (buf_file.st_mode & S_IFMT)
+                    {
+                        case S_IFBLK:  entete.typeflag=S_IFBLK    ;   break;
+	                    case S_IFCHR:  entete.typeflag=S_IFCHR    ;   break;
+                        case S_IFDIR:  entete.typeflag=S_IFDIR    ;   break;
+                        case S_IFIFO:  entete.typeflag=S_IFIFO    ;   break;
+	                    case S_IFLNK:  entete.typeflag=S_IFLNK    ;   break;
+                        case S_IFREG:  entete.typeflag=S_IFREG    ;   break;
+                        case S_IFSOCK: entete.typeflag=S_IFSOCK   ;   break;
+	                    default:        break;
+	                }
 
-		}
+
+	               	sprintf(entete.mtime,"%011lo",time(NULL));
+	               	sprintf(entete.uid,"%d",buf_file.st_uid);
+	               	sprintf(entete.gid,"%d",buf_file.st_gid);
+	              	sprintf(entete.uname,"%s",getpwuid(buf_file.st_gid)->pw_name);
+	              	sprintf(entete.gname,"%s",getgrgid(buf_file.st_gid)->gr_name);
+	               	sprintf(entete.size,"%011o",buf_file.st_size);
+	               	strcpy(entete.magic,"ustar");
+	               	set_checksum(&entete);
+	               	if (!check_checksum(&entete))
+                 	perror("Checksum impossible");
+                 	fd_dest = open(destination,O_RDWR);
+
+                    //compter le nombre de block dans le .tar en destinaton
+                    int nb_blocs_dest=0;
+       	            while ((read(fd_dest,&header,512))>0)
+       	            {
+                      if (header.name[0] != '\0')
+                      {
+	                  	sscanf(header.size,"%o",&taille);
+	                  	nb_blocs_dest += 1 + ((taille + 512 - 1) / 512);
+	                 	lseek(fd_dest,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+	                 	}
+	                  else
+                       {
+                           break;
+		                }
+		            }
+	               //copier le contenue dans la nouvelle entete puis faire un write dans le fichier en destination
+	               write(fd_dest,&entete,512);
+	               nb_blocs_dest += 1;
+	               int reads=0;
+	               sscanf(entete.size,"%o",&taille);
+	               while ((lus=read(fd_file,&entete,BLOCKSIZE)) > 0)
+	               {
+                     reads+=lus;
+                     if(reads <= taille)
+                      {
+                          lseek(fd_dest,nb_blocs_dest*512,SEEK_CUR);
+	                      write(fd_dest,&entete,lus);
+	                      nb_blocs_dest += 1 ;
+                      }
+                      else
+                      {
+                          break;
+                      }
+                   }
+		          close(fd_dest);
+		          close(fd_tar_file);
+		          return 0;
 
 
-	}
-	printf("cp en construction\n");
-	return 0;
+
+		        }
+			   //fichier destination est dans un tar
+				else
+				{
+				     fd_file = open(file,O_RDONLY);
+    				 char *tar_dest = malloc(strlen(destination));
+    				 char *dest=malloc(strlen(destination));
+	            	 strncpy(tar_dest,destination,index_d);
+	            	 strcpy(dest,&destination[index_d]);
+		             fd_dest = open(tar_dest,O_RDWR);
+					 struct posix_header entete;
+					 struct posix_header entete2;
+					  //chercher le block du ficher destinaton dans le .tar
+		             int nb_blocs_dest=0;
+		             while ((read(fd_dest,&enteter,512))>0)
+		             {
+		                 if (entete.name[0] != '\0')
+		                 {
+		                     if (entete.name[0] != dest)
+		                     {
+		                         sscanf(entete.size,"%o",&taille);
+		                         nb_blocs_dest += 1 + ((taille + 512 - 1) / 512);
+		                         lseek(fd_dest,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+		                     }
+		                     else
+		                     {
+		                         char *buf_file = malloc(sizeof(struct stat));
+		                         stat(fd_file, buf_file);
+		                         sscanf(buf_file.st_size,"%o",&taille);
+		                         nb_blocs_dest += 1 + ((taille + 512 - 1) / 512);
+		                         lseek(fd_dest,((taille + 512 - 1) / 512)*512,SEEK_CUR);
+		                         int reads=0;
+		                         while ((lus=read(fd_file,&entete2,BLOCKSIZE)) > 0)
+		                         {
+		                             reads=+lus;
+		                             if(reads <= taille)
+		                             {
+		                                 lseek(fd_dest,nb_blocs_dest*512,SEEK_CUR);
+		                                 write(fd_dest,&entete2,lus);
+		                                 nb_blocs_dest += 1 ;
+	                                 }
+	                                 else
+                                    {
+                                        break;
+                                    }
+                                 }
+                              //   entete.size+=buf_file.st_size;
+                                 entete.typeflag=S_IFDIR    ;
+                                 close(fd_dest);
+                                 close(fd_file);
+                                 return 0;
+                             }
+		                  }
+		                  else
+		                  {
+		                      break;
+    	                  }
+	                 }
+	           }
+
+         }
+
+
+     }
+			printf("cp en construction\n");
+			return 0;
 }
 int supprimer_fichier(char *file, int option, shell *tsh)
 {
