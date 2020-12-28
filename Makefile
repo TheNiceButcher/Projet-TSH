@@ -12,7 +12,7 @@ tar_c.o: tar_c.c tar_c.h
 	gcc -c $(FLAGS) tar_c.c -o tar_c.o
 tar_cmd.o: tar_cmd.c tar_cmd.h tar_c.c tar_c.h commande.c commande.h tar.h
 	gcc -c $(FLAGS) tar_cmd.c -o tar_cmd.o
-tar.o: tsh.c tsh.o
+tar.o: tar.c tar.h
 	gcc -c $(FLAGS) tar.c -o tar.o
 clean:
 	rm tsh $(FILES)
