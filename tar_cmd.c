@@ -426,14 +426,20 @@ int cp_file_to_tar(char *src, char *destination,int option)
 	tar[index_tar] = '\0';
 	if (tar[index_tar -1] == '/')
 		tar[index_tar - 1] = '\0';
+	int index_src = strlen(src) - 1;
+	while (index_src != 0 && src[index_src] != '/')
+	{
+		index_src--;
+	}
+	index_src++;
 	struct posix_header entete;
 	memset(&entete, 0, BLOCKSIZE);
-	int i = strlen(src) - 1;
-	while (i > 0 && src[i] != '/')
-		i--;
-	if (i != 0)
-		i++;
-	sprintf(entete.name, "%s", &src[i]);
+	if (strlen(destination)==index_tar)
+	{
+		sprintf(entete.name,"%s",&src[index_src]);
+	}
+	else
+		sprintf(entete.name,"%s/%s",&destination[index_tar],&src[index_src]);
 	time_t date = time(NULL);
 	sprintf(entete.mtime,"%011o",date);
 	sprintf(entete.uid,"%d",st.st_uid);
@@ -443,16 +449,40 @@ int cp_file_to_tar(char *src, char *destination,int option)
 	sprintf(entete.size,"%011lo",st.st_size);
   	strcpy(entete.magic,"ustar");
 	sprintf(entete.mode,"0000%s",perm_str(st.st_mode));
+
 	entete.typeflag = '0';
 	set_checksum(&entete);
 	if (!check_checksum(&entete))
 		perror("Checksum impossible");
+	printf("%s %s\n",entete.name, tar);
 	creation_fichier_tar(tar,src,entete);
+	free(tar);
 	return 0;
 }
 int cp_tar_to_file(char *src, char *destination,int option)
 {
-	printf("cp tar -> file\n");
+	int index_tar_src = recherche_fich_tar(src);
+	//Copie d'un tar sans option -r -> erreur
+	if (index_tar_src == strlen(src) && option == 0)
+	{
+		char * error = malloc(strlen(src) + 50);
+		sprintf(error,"cp : -r non specifie : omission du repertoire %s\n", src);
+		write(STDERR_FILENO,error,strlen(error));
+		free(error);
+		return 1;
+	}
+	char *tar = malloc(strlen(src) + 2);
+	strncpy(tar,src,index_tar_src);
+	tar[index_tar_src] = '\0';
+	if (tar[index_tar_src - 1] == '/')
+	{
+		tar[index_tar_src - 1] = '\0';
+	}
+	//Copie de fichier dans tar a file
+	if (index_tar_src != strlen(src))
+	{
+
+	}
 	return 0;
 }
 int cp_tar_to_tar(char *src, char *destination,int option)
