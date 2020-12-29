@@ -651,48 +651,78 @@ int modification_date_modif(char *tar,char *file,time_t date)
 	return 0;
 }
 /*
-Crée un repertoire au nom de repr dans le fichier tar en argument dans lequel
-repr n'est pas present et est valide
+Crée ou écrase le fichier file dans le tar dont le futur entete est en argument.
 */
-int creation_repertoire_tar(char*tar,char*repr)
+int creation_fichier_tar(char*tar,char*src,struct posix_header entete)
 {
 
 	int fd = open(tar,O_RDONLY);
 	if(fd == -1)
 	{
-		char *error = malloc(strlen(tar)+strlen("Erreur creation_repertoire_tar \n")+2);
-		sprintf(error,"Erreur creation_repertoire_tar %s\n",tar);
+		char *error = malloc(strlen(tar)+strlen("Erreur creation_fichier_tar \n")+2);
+		sprintf(error,"Erreur creation_fichier_tar %s\n",tar);
 		perror(error);
 		free(error);
 		return 0;
 	}
-	//Création entete du dossier à creer
-	struct posix_header hd,hd2;
-	memset(&hd,0,sizeof(struct posix_header));
-	sprintf(hd.name,"%s",repr);
-	sprintf(hd.mode,"0000777");
-  hd.typeflag = '5';
-	time_t date = time(NULL);
-	sprintf(hd.mtime,"%011lo",date);
-	sprintf(hd.uid,"%d",getuid());
-	sprintf(hd.gid,"%d",getgid());
-	sprintf(hd.uname,"%s",getpwuid(getuid())->pw_name);
-	sprintf(hd.gname,"%s",getgrgid(getgid())->gr_name);
-	sprintf(hd.size,"%011o",0);
-  strcpy(hd.magic,"ustar");
-	set_checksum(&hd);
-	if (!check_checksum(&hd))
-		perror("Checksum impossible");
-	unsigned int lus,taille = 0;
-	int nb_blocs = 0;
-	while ((lus = read(fd,&hd2,512))>0)
+	int fd_copie = open(".creation_fichier_tar",O_WRONLY | O_TRUNC | O_CREAT, S_IWUSR | S_IRUSR);
+	if(fd_copie == -1)
 	{
-		if (hd2.name[0] != '\0')
+		char *error = malloc(strlen(tar)+strlen("Erreur .creation_fichier_tar \n")+2);
+		sprintf(error,"Erreur .creation_fichier_tar %s\n",tar);
+		perror(error);
+		free(error);
+		return 0;
+	}
+	struct posix_header hd2;
+	long nb_blocs = 0;
+	int trouve = 0;
+	while ((read(fd,&hd2,512))>0)
+	{
+	
+		if (hd2.name[0] != '\0' && check_checksum(&hd2))
 		{
-			sscanf(hd2.size,"%o",&taille);
-			long nb_blocs_fich = ceil(taille / 512.0);
-			nb_blocs += 1 + nb_blocs_fich;
-			lseek(fd,nb_blocs_fich*512,SEEK_CUR);
+			if (strcmp(hd2.name,entete.name)==0)
+			{
+				write(fd_copie,&entete,BLOCKSIZE);
+				int fd_src = open(src,O_RDONLY);
+				if (fd_src == -1)
+				{
+					printf("%s ta merer\n",src);
+				}
+				char buffer[BLOCKSIZE];
+				int taille_src = 0;
+				sscanf(entete.size,"%o",&taille_src);
+				if (taille_src != 0)
+				{
+					int lus = 0;
+					while ((lus = read(fd_src, buffer, BLOCKSIZE)) > 0)
+					{
+						write(fd_copie, buffer, lus);
+					}
+				}
+				int taille_dest = 0;
+				sscanf(hd2.size,"%o",&taille_dest);
+				lseek(fd,512 * ceil((double) taille_dest / (double) 512),SEEK_CUR);
+				trouve = 1;
+				close(fd_src);
+			}
+			else
+			{
+				write(fd_copie,&hd2,BLOCKSIZE);
+				unsigned long taille = 0;
+				sscanf(hd2.size,"%o",&taille);
+				long nb_blocs_fich = ceil((double) taille / (double) 512.0);
+				printf("%ld %s\n",taille,hd2.name);
+				nb_blocs += 1 + nb_blocs_fich;
+				while(nb_blocs_fich != 0)
+				{
+					char buffer[BLOCKSIZE];
+					int lus = read(fd,buffer,BLOCKSIZE);
+					write(fd_copie,buffer,lus);
+					nb_blocs_fich--;
+				}
+			}
 		}
 		else
 		{
@@ -700,11 +730,42 @@ int creation_repertoire_tar(char*tar,char*repr)
 		}
 	}
 	close(fd);
-	//Ajout du repertoire a la fin du tarball
+	close(fd_copie);
 	fd = open(tar,O_WRONLY);
-	lseek(fd,nb_blocs*512,SEEK_CUR);
-	write(fd,&hd,512);
-	nb_blocs++;
+	lseek(fd,0,SEEK_SET);
+	//Ajout du fichier a la fin du tarball s'il n'existe pas
+	if (trouve == 0)
+	{
+		lseek(fd,nb_blocs*512,SEEK_CUR);
+		write(fd,&entete,512);
+		if(entete.typeflag == '0')
+		{
+			int fd_src = open(src,O_RDONLY);
+			char buffer[BLOCKSIZE];
+			int lus_src = 0;
+			while ((lus_src = read(fd_src,buffer,BLOCKSIZE)) > 0)
+			{
+				write(fd,buffer,lus_src);
+				nb_blocs++;
+			}
+			close(fd_src);
+		}
+		nb_blocs++;
+	}
+	//On remplace le fichier de base par sa copie avec le nouveau fichier
+	else
+	{
+		nb_blocs = 0;
+		char buffer[BLOCKSIZE];
+		int lus = 0;
+		fd_copie = open(".creation_fichier_tar", O_RDONLY);
+		lseek(fd_copie,0,SEEK_SET);
+		while ((lus=read(fd_copie,buffer,BLOCKSIZE)) > 0)
+		{
+			write(fd,buffer,lus);
+			nb_blocs++;
+		}
+	}
 	//On retablit le fait que le tar est constitue de blocs de 20 blocs de 512 octets
 	while (nb_blocs % 20 != 0)
 	{
@@ -715,24 +776,26 @@ int creation_repertoire_tar(char*tar,char*repr)
 	}
 	close(fd);
 	//Modification derniere date de modification pour les repertoires "antecedants" du nouveau fichier
-	init_chemin_explorer(repr);
-	int index_repr = 0;
+	init_chemin_explorer(entete.name);
+	int index_name = 0;
+	time_t date;
+	sscanf(entete.mtime,"%o",&date);
 	decoup_fich();
-	char * repr_bis = calloc(strlen(repr)+1,sizeof(char));
+	char * name_bis = calloc(strlen(entete.name)+1,sizeof(char));
 	while (index_chemin_a_explorer < chemin_length)
 	{
-		char *file = malloc(strlen(repr)+1);
-		strncpy(file,&chemin_a_explorer[index_repr],index_chemin_a_explorer-index_repr);
-		file[index_chemin_a_explorer-index_repr] = '\0';
-		strcat(repr_bis,file);
-		repr_bis[index_chemin_a_explorer] = '\0';
-		modification_date_modif(tar,repr_bis,date);
-		index_repr = index_chemin_a_explorer;
+		char *file = malloc(strlen(entete.name)+1);
+		strncpy(file,&chemin_a_explorer[index_name],index_chemin_a_explorer-index_name);
+		file[index_chemin_a_explorer-index_name] = '\0';
+		strcat(name_bis,file);
+		name_bis[index_chemin_a_explorer] = '\0';
+		modification_date_modif(tar,name_bis,date);
+		index_name = index_chemin_a_explorer;
 		decoup_fich();
 		free(file);
 	}
 	free_chemin_explorer();
-	free(repr_bis);
+	free(name_bis);
 	return 0;
 }
 #endif

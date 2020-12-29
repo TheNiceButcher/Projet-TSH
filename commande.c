@@ -381,6 +381,121 @@ int cheminValide(char *path,char * cmd)
 	}
 }
 /*
+Renvoie l'index de la destination si elle est valide ou -1 sinon
+*/
+int mv_cp_valide(char **liste_argument,int nb_option,int nb_arg_cmd,shell *tsh)
+{
+	char * destination = NULL;
+	int index_destination = -1;
+	char * nom_commande = malloc(strlen(liste_argument[0]) + 2);
+	sprintf(nom_commande,"%s",liste_argument[0]);
+	//On trouve le fichier destination de la commande
+	for (int i = nb_arg_cmd - 1; i > 0; i--)
+	{
+		if(liste_argument[i][0] != '-')
+		{
+			destination = malloc(strlen(liste_argument[i])+
+			strlen(tsh->repertoire_courant)+3);
+			index_destination = i;
+			sprintf(destination,"%s%s",tsh->repertoire_courant,liste_argument[i]);
+			break;
+		}
+	}
+	//Si on n'en trouve pas, on affiche une erreur
+	if (destination==NULL)
+	{
+		char *error = malloc(strlen(nom_commande)+strlen(" : Aucun argument\n")+1);
+		sprintf(error,"%s : Aucun argument\n", nom_commande);
+		write(STDERR_FILENO,error,strlen(error));
+		free(error);
+		free(nom_commande);
+		return -1;
+	}
+	//On verifie si nous avons le bon nombre d'arguments
+	if (nb_arg_cmd - nb_option < 3)
+	{
+			char *error = malloc(strlen(nom_commande)+strlen(" : Cible manquante\n")+1);
+			sprintf(error,"%s : Cible manquante\n",nom_commande);
+			write(STDERR_FILENO,error,strlen(error));
+			free(error);
+			free(nom_commande);
+			free(destination);
+			return -1;
+	}
+
+	//Verification existence de la destination
+	/*S'il y a plus de 2 arguments, la cible doit exister avant la commande
+	et doit être un repertoire */
+	if(nb_arg_cmd - nb_option != 3)
+	{
+		//Verification existence
+		if (!cheminValide(destination,nom_commande))
+		{
+			char *error = malloc(strlen(nom_commande)+strlen(" : Cible inexistante\n")
+				+ strlen(destination));
+			sprintf(error,"%s %s : Cible inexistante\n",nom_commande,destination);
+			write(STDERR_FILENO,error,strlen(error));
+			free(error);
+			free(nom_commande);
+			free(destination);
+			return -1;
+		}
+		//Verification repertoire
+		sprintf(destination,"%s",simplifie_chemin(destination));
+		if (contexteTarball(destination))
+		{
+			int index_tar = recherche_fich_tar(destination);
+			if (index_tar != strlen(destination))
+			{
+				char *tar = malloc(index_tar + 2);
+				strncpy(tar,destination,index_tar);
+				tar[index_tar] = '\0';
+				if (tar[index_tar - 1] == '/')
+				{
+					tar[index_tar-1] = '\0';
+				}
+				char *file_in_tar = malloc(strlen(destination)+1);
+				sprintf(file_in_tar,"%s",&destination[index_tar]);
+				if (estRepertoire(file_in_tar,tar)==0)
+				{
+					char *error = malloc(strlen(nom_commande)+
+					strlen(" : la cible  n'est pas un repertoire\n")
+					+ strlen(liste_argument[index_destination] + 10));
+					sprintf(error,"%s : la cible %s n'est pas un repertoire\n",nom_commande,liste_argument[index_destination]);
+					write(STDERR_FILENO,error,strlen(error));
+					free(error);
+					free(nom_commande);
+					free(destination);
+					free(tar);
+					free(file_in_tar);
+					return -1;
+				}
+				free(tar);
+				free(file_in_tar);
+			}
+		}
+		else
+		{
+			struct stat st;
+			stat(destination,&st);
+			if (!S_ISDIR(st.st_mode))
+			{
+				char *error = malloc(strlen(nom_commande)+
+				strlen(" : la cible  n'est pas un repertoire\n")
+				+ strlen(liste_argument[index_destination] + 10));
+				sprintf(error,"%s : la cible %s n'est pas un repertoire\n",nom_commande,liste_argument[index_destination]);
+				write(STDERR_FILENO,error,strlen(error));
+				free(error);
+				free(nom_commande);
+				free(destination);
+				return -1;
+			}
+		}
+
+	}
+	return index_destination;
+}
+/*
 Gere le traitement d'une commande pouvant etre executee sur un tar
 */
 int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
@@ -393,7 +508,6 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	d'au plus un argument */
 	if (strcmp(nom_commande,"cd")==0)
 	{
-		//free(nom_commande);
 		cd(liste_argument,nb_arg_cmd,tsh);
 		free(nom_commande);
 		return 0;
@@ -446,11 +560,16 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	//Sinon, si la commande n'a pas d'argument, on renvoie une erreur
 	if(nb_arg_cmd==1)
 	{
-		char * error = malloc(strlen(nom_commande)+strlen("Arguments manquants\n")+1);
+		char * error = malloc(strlen(nom_commande)+strlen("Arguments manquants\n")+10);
 		sprintf(error,"%s : Arguments manquants\n",nom_commande);
 		write(STDERR_FILENO,error,strlen(error));
 		free(error);
 		free(nom_commande);
+		for (int j = 0; j < nb_options; j++)
+		{
+			free(options[j]);
+		}
+		free(options);
 		return 1;
 	}
 	/*Sinon, si la commande est cp ou mv, on verifie si la destination est valide
@@ -458,69 +577,20 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	int index_destination = 0;
 	if (strcmp(nom_commande,"cp")==0 || strcmp(nom_commande,"mv")==0)
 	{
-		//On trouve le fichier destination de la commande
-		for (int i = nb_arg_cmd - 1; i > 0; i--)
+		index_destination = mv_cp_valide(liste_argument,nb_options,nb_arg_cmd,tsh);
+		if (index_destination == -1)
 		{
-			if(liste_argument[i][0] != '-')
-			{
-				destination = malloc(strlen(liste_argument[i])+
-				strlen(tsh->repertoire_courant)+3);
-				index_destination = i;
-				sprintf(destination,"%s%s",tsh->repertoire_courant,liste_argument[i]);
-				break;
-			}
-		}
-		//Si on n'en trouve pas, on affiche une erreur
-		if (destination==NULL)
-		{
-			char *error = malloc(strlen(nom_commande)+strlen(" : Aucun argument\n")+1);
-			sprintf(error,"%s : Aucun argument\n", nom_commande);
-			write(STDERR_FILENO,error,strlen(error));
-			free(error);
 			free(nom_commande);
-			return 0;
-		}
-		//On verifie si nous avons le bon nombre d'arguments
-		if (options==NULL)
-		{
-			if (nb_arg_cmd < 3)
+			for (int j = 0; j < nb_options; j++)
 			{
-				char *error = malloc(strlen(nom_commande)+strlen(" : Cible manquante\n")+1);
-				sprintf(error,"%s : Cible manquante\n",nom_commande);
-				write(STDERR_FILENO,error,strlen(error));
-				free(error);
-				free(nom_commande);
-				return 0;
+				free(options[j]);
 			}
+			free(options);
+			return 1;
 		}
-		else
-		{
-			if (nb_arg_cmd - nb_options < 3)
-			{
-					char *error = malloc(strlen(nom_commande)+strlen(" : Cible manquante\n")+1);
-					sprintf(error,"%s : Cible manquante\n",nom_commande);
-					write(STDERR_FILENO,error,strlen(error));
-					free(error);
-					free(nom_commande);
-					return 0;
-			}
-		}
-		//Verification existence de la destination
-		//S'il y a plus de 2 arguments, la cible doit exister avant la commande
-		if(nb_arg_cmd - nb_options != 3)
-		{
-			if (!cheminValide(destination,nom_commande))
-			{
-				char *error = malloc(strlen(nom_commande)+strlen(" : Cible inexistante\n")
-					+ strlen(destination));
-				sprintf(error,"%s %s : Cible inexistante\n",nom_commande,destination);
-				write(STDERR_FILENO,error,strlen(error));
-				free(error);
-				free(nom_commande);
-				return 0;
-			}
-
-		}
+		destination = malloc(strlen(liste_argument[index_destination])+
+		strlen(tsh->repertoire_courant) + 6);
+		sprintf(destination,"%s%s",tsh->repertoire_courant,liste_argument[index_destination]);
 	}
 	for (int i = 1; i < nb_arg_cmd; i++)
 	{
@@ -529,7 +599,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 			continue;
 
 		char * argument_courant = malloc(strlen(liste_argument[i])+
-			strlen(tsh->repertoire_courant)+4);
+			strlen(tsh->repertoire_courant)+6);
 		sprintf(argument_courant,"%s%s",tsh->repertoire_courant,liste_argument[i]);
 
 		/*Verification existence et le contexte (dans un tarball ou non) de l'argument courant*/
@@ -720,14 +790,26 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					}
 					else
 					{
-						printf("Tar -> NonTar\n");
+						cp_tar_to_file(argument_courant,destination,0);
 					}
 				}
 			}
 			//Destination dans un tar
 			else
 			{
-				printf("->Tar\n");
+				if (cheminValide(argument_courant,nom_commande)==0)
+				{
+					erreur_chemin_non_valide(argument_courant,nom_commande);
+					free(argument_courant);
+					continue;
+				}
+				sprintf(argument_courant,"%s",simplifie_chemin(argument_courant));
+				if(contexteTarball(argument_courant))
+				{
+					cp_tar_to_tar(argument_courant,destination,0);
+				}
+				else
+					cp_file_to_tar(argument_courant,destination,0);
 			}
 
 		}
