@@ -1360,6 +1360,60 @@ int mkdir_tar(char *file, char **options,shell *tsh)
 }
 int mv(char *file,char *destination,char **options,shell *tsh)
 {
+/*
+    if (contexteTarball(file))
+	{
+		
+			if(contexteTarball(destination))
+			{
+				
+				cp_tar_to_tar(file,destination,options);
+				int index = recherche_fich_tar(file);
+	      	    //Fichier source est un .tar
+	        	if (index == strlen(file))
+		        {
+				  supprimer_fichier(file,RM_DIR,tsh);  
+				  return 0;
+	         	}
+	         	else
+	         	{
+	         	    supprimer_fichier(file,RM_DIR,tsh);  
+	         	    return 0;
+	         	}
+				
+			}
+			else
+			{
+			     cp_tar_to_file(file,RM_DIR,tsh);
+			     return 0;
+			}
+			
+		
+	}
+	else
+	{
+	    	if(contexteTarball(destination))
+			{
+				
+				cp_tar_to_tar(file,destination,options);
+			    if(unlink(file)==-1)
+		      	{
+				char *error = malloc(strlen(file)+strlen("rm  :"));
+				sprintf(error,"rm %s :",file);
+				perror(error);
+				free(error);
+		     	}
+				
+			}
+	    
+	}
+    
+    
+    
+    
+    */
+    
+    
 	   /* struct stat stat_src;
 	     char *src_final, *dest_final;
 	    if (contexteTarball(simple_src)){
