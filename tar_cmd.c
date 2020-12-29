@@ -402,6 +402,65 @@ char * perm_str(mode_t mode)
 	}
 	return perm;
 }
+mode_t perm_mode(char mode[8])
+{
+	mode_t m = 0;
+	//Droit proprietaire
+	int perm_uti = mode[4] - '0';
+	//Droit groupe
+	int perm_grp = mode[5] - '0';
+	//Droit autres
+	int perm_oth = mode[6] - '0';
+	//proprietaire
+	if (perm_uti - 4 >= 0)
+	{
+		perm_uti -= 4;
+		m = m | S_IRUSR;
+	}
+	if (perm_uti - 2 >= 0)
+	{
+		perm_uti -= 2;
+		m = m | S_IWUSR;
+	}
+	if (perm_uti - 1 >= 0)
+	{
+		perm_uti -= 1;
+		m = m | S_IXUSR;
+	}
+	//Groupe
+	if (perm_grp - 4 >= 0)
+	{
+		perm_grp -= 4;
+		m = m | S_IRGRP;
+	}
+	if (perm_grp - 2 >= 0)
+	{
+		perm_grp -= 2;
+		m = m | S_IWGRP;
+	}
+	if (perm_grp - 1 >= 0)
+	{
+		perm_grp -= 1;
+		m = m | S_IXGRP;
+	}
+	//Autres
+	if (perm_oth - 4 >= 0)
+	{
+		perm_oth -= 4;
+		m = m | S_IROTH;
+	}
+	if (perm_oth - 2 >= 0)
+	{
+		perm_oth -= 2;
+		m = m | S_IWOTH;
+	}
+	if (perm_oth - 1 >= 0)
+	{
+		perm_oth -= 1;
+		m = m | S_IXOTH;
+	}
+	return m;
+}
 int cp_file_to_tar(char *src, char *destination,int option)
 {
 	printf("cp file -> tar\n");
@@ -461,6 +520,7 @@ int cp_file_to_tar(char *src, char *destination,int option)
 }
 int cp_tar_to_file(char *src, char *destination,int option)
 {
+	printf("cp tar -> file\n");
 	int index_tar_src = recherche_fich_tar(src);
 	//Copie d'un tar sans option -r -> erreur
 	if (index_tar_src == strlen(src) && option == 0)
@@ -481,7 +541,39 @@ int cp_tar_to_file(char *src, char *destination,int option)
 	//Copie de fichier dans tar a file
 	if (index_tar_src != strlen(src))
 	{
-
+		struct stat st_dest;
+		if (stat(destination,&st_dest)==-1)
+		{
+			perror("Destination ");
+			return 1;
+		}
+		if (S_ISDIR(st_dest.st_mode))
+		{
+			//On trouve le nom du nouveau fichier
+			int index_src = strlen(src) - 1;
+			while (index_src != 0 && src[index_src] != '/')
+			{
+				index_src--;
+			}
+			index_src++;
+			char *file_name = malloc(strlen(destination) + 50);
+			if (destination[strlen(destination)-1] != '/')
+				sprintf(file_name,"%s/%s",destination, &src[index_src]);
+			else
+				sprintf(file_name,"%s%s",destination, &src[index_src]);
+			struct posix_header entete = recuperer_entete(tar,&src[index_src]);
+			mode_t mode = perm_mode(entete.mode);
+			int fd_dest = open(file_name,O_WRONLY | O_TRUNC | O_CREAT ,mode);
+			if (fd_dest == -1)
+			{
+				perror("Coucouc");
+				return 1;
+			}
+			affiche_fichier_tar(tar,&src[index_tar_src],fd_dest);
+			close(fd_dest);
+			free(tar);
+			free(file_name);
+		}
 	}
 	return 0;
 }
@@ -1331,8 +1423,6 @@ int mkdir_tar(char *file, char **options,shell *tsh)
 			strcat(repr_to_create,"/");
 			repr_to_create[strlen(fichier)-index] = '\0';
 		}
-		char * parent = malloc(strlen(file)+1);
-		sprintf(parent,"%s",repr_to_create);
 		//Creation de l'entete
 		struct posix_header hd;
 		memset(&hd,0,sizeof(struct posix_header));
@@ -1641,7 +1731,7 @@ int cat(char *file, char **options,shell *tsh)
 		else
 			file_to_find[strlen(file_to_find)] = '\0';
 		//On appelle affiche_fichier_tar qui affichera le contenu du fichier ou une erreur
-		if (affiche_fichier_tar(tar,file_to_find)==0)
+		if (affiche_fichier_tar(tar,file_to_find, STDOUT_FILENO)==0)
 		{
 			char *error = malloc(strlen(file)+strlen("cat \n"));
 			sprintf(error,"cat %s : est un dossier\n",file);

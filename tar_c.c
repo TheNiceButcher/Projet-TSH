@@ -421,10 +421,11 @@ char **affichage_ls_l(char ** to_print,char * argument,int nb_files,char **list)
 
 }
 /*
-Affiche le contenu du fichier file et retourne 1 si file est dans tar. Sinon,renvoie
+Affiche le contenu du fichier file dans le fichier dont le descripteur est en argument
+et retourne 1 si file est dans tar. Sinon,renvoie
 0 et affiche une erreur
 */
-int affiche_fichier_tar(char *tar,char*file)
+int affiche_fichier_tar(char *tar,char*file, int fd_out)
 {
 	int fd,lus;
 	struct posix_header entete;
@@ -461,7 +462,7 @@ int affiche_fichier_tar(char *tar,char*file)
 				while (taille > i)
 				{
 					lus=read(fd,buffer,BLOCKSIZE);
-					write(1,buffer,lus);
+					write(fd_out,buffer,lus);
 					i += lus;
 				}
 				return 1;
@@ -679,7 +680,7 @@ int creation_fichier_tar(char*tar,char*src,struct posix_header entete)
 	int trouve = 0;
 	while ((read(fd,&hd2,512))>0)
 	{
-	
+
 		if (hd2.name[0] != '\0' && check_checksum(&hd2))
 		{
 			if (strcmp(hd2.name,entete.name)==0)
