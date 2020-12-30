@@ -54,3 +54,18 @@ L'action voulue est donc effectuée. On repart alors pour un autre tour du boucl
 	* shell .c/.h gère la partie 'shell' du projet, avec la création de la structure `shell` et des fonctions `recuperer_commande`,`traitement_commande` ou encore des fonctions auxiliaires de ces dernières,
 	* tar_c .c/.h effectue les différentes actions sur les tarballs voulues, comme `list_fich` qui renvoie la liste des fichiers dans un .tar pouvant être utile pour `ls` ou encore `supprimer_fichier_tar` pour `rm`;
 	* tar.h/c, repris du TP1, permet d'utiliser la structure posix_header, indispensable pour parcourir les tarballs et effectuer des commandes dessus;
+
+# Corrections par rapport au premier rendu :
+
+* Nous avons pris en compte votre retour, vis à vis du premier rendu, et nous avons effectué les corrections suivantes:
+	* readline utilise maintenant history, grâce à add_history;
+	* les anciennes fonctions auxiliaires et leur système de pointeurs de fonctions ont laissé la place à une vérification du contexte et de l'existence des arguments, puis si le contexte l'impose, l'appel à une fonction "maison" effectuant l'action demandée sur les tar;
+	* les printf sont tous (ou presque) partis du programme. Les messages d'erreur s'affichent sur la sortie d'erreur standard avec l'aide de `perror` et de `write(STDERR_FILENO ...)`;
+	* `decoup_mot` renvoie maintenant l'index, comme vous l'avez suggéré, à l'aide de `commande_a_explorer`, une variable globale;
+	* Plusieurs fuites mémoires ont été comblées, même s'il en reste encore;
+	* Pour vérifier d'un chemin existe bien avant de le simplifier, on a crée `cheminValide`, qui renvoie 1 si le chemin existe et 0 sinon. Cela règle le soucis du type dos_existe_pas/..;
+	* L'ajout des attributs `cmd_tarballs` et `options` à la structure `shell` a permis de généraliser un peu plus le programme et de prendre moins de places en mémoires;
+	* Les tubes fonctionnent maintenant;
+	* `ls` n'affiche plus tous les fichiers d'un tar et ne commet plus de SEGFAULT avec l'option -l;
+	* Nous avons commenté davantage pour ce deuxième rendu;
+	* Nous avons fait des fonctions plus court, en factorisant le code le plus possible. Cependant, il reste le problème du découpage des fichiers, que nous avons commencé à traiter trop tardivement . 
