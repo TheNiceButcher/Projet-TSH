@@ -299,10 +299,6 @@ char **affichage_ls_l(char ** to_print,char * argument,int nb_files,char **list)
 		{
 			nb_ln[i] += nombre_sous_dossier(to_print[i],tar,list) + 1;
 		}
-		if (entete.typeflag == '2')
-		{
-			printf("Lien \n");
-		}
 		ls_l[i] = malloc(1024);
 		unsigned long taille;
 		char * time_fich = malloc(1024);
@@ -740,7 +736,8 @@ int creation_fichier_tar(char*tar,char*src,struct posix_header entete)
 			int fd_src = open(src,O_RDONLY);
 			if (fd_src == -1)
 			{
-				perror("tuez moi");
+				perror(tar);
+				return 1;
 			}
 			char buffer[BLOCKSIZE];
 			int lus_src = 0;

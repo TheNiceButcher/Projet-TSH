@@ -581,7 +581,7 @@ struct posix_header entete_dossier(char * name, struct stat st)
 	if (name[strlen(name)-1] == '/')
 		sprintf(hd.name,"%s",name);
 	else
-		printf(hd.name,"%s/",name);
+		sprintf(hd.name,"%s/",name);
 	sprintf(hd.mode,"0000%s",perm_str(st.st_mode));
 	hd.typeflag = '5';
 	time_t date = time(NULL);
@@ -934,7 +934,6 @@ int cp_tar_to_file(char *src, char *destination,int option)
 				sprintf(new_src,"%s%s",src, list[i]);
 			else
 				sprintf(new_src,"%s/%s",src, list[i]);
-			printf("%s\n",new_src);
 			cp_tar_to_file(new_src,destination,option);
 			i++;
 		}
@@ -958,8 +957,21 @@ int cp_tar_to_tar(char *src, char *destination,int option)
 		return 1;
 	}
 	cp_tar_to_file(src,".cp_tar_to_tar", option);
-
-	cp_file_to_tar(".cp_tar_to_tar",destination,1);
+	DIR * repr = opendir(".cp_tar_to_tar");
+	struct dirent * encore = readdir(repr);
+	while (encore)
+	{
+		if (strcmp(encore->d_name,".") && strcmp(encore->d_name,".."))
+		{
+			char * new_file = malloc(30 + strlen(encore->d_name));
+			sprintf(new_file,".cp_tar_to_tar/%s",encore->d_name);
+			cp_file_to_tar(new_file,destination,1);
+			free(new_file);
+		}
+		encore = readdir(repr);
+	}
+	free(encore);
+	closedir(repr);
 	int fils = fork();
 	if (fils == 0)
 	{
