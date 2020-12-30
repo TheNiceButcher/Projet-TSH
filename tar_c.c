@@ -52,8 +52,9 @@ char **list_fich(char *tar)
 		if (entete.name[0] != '\0' && check_checksum(&entete))
 		{
 			//On rajoute le nom dans la liste
-			liste_fichier[taille_archive] = malloc(strlen(entete.name)+1);
+			liste_fichier[taille_archive] = calloc(strlen(entete.name)+3,sizeof(char));
 			sprintf(liste_fichier[taille_archive],"%s",entete.name);
+			liste_fichier[taille_archive][strlen(entete.name)] = '\0';
 			if (entete.typeflag != '5')
 			{
 				unsigned long taille;
@@ -427,6 +428,15 @@ et retourne 1 si file est dans tar. Sinon,renvoie
 */
 int affiche_fichier_tar(char *tar,char*file, int fd_out)
 {
+	//Si le fichier est un repertoire, on ne l'affiche et on renvoie une erreur
+	if (estRepertoire(file,tar))
+	{
+		char *error = malloc(strlen(file)+strlen("cat  : est un dossier\n")+2);
+		sprintf(error,"cat %s : est un dossier\n", file);
+		write(STDERR_FILENO,error,strlen(error));
+		free(error);
+		return 0;
+	}
 	int fd,lus;
 	struct posix_header entete;
 	fd = open(tar,O_RDONLY);
@@ -447,14 +457,11 @@ int affiche_fichier_tar(char *tar,char*file, int fd_out)
 			//On affiche le fichier
 			if(strcmp(file,entete.name)==0)
 			{
-				if(entete.typeflag == '5')
+				/*if (entete.typeflag == '2')
 				{
-					char *error = malloc(strlen(file)+strlen("cat  : est un dossier\n")+2);
-					sprintf(error,"cat %s : est un dossier\n", file);
-					write(STDERR_FILENO,error,strlen(error));
-					free(error);
-					return 0;
-				}
+					if (estPresent())
+					affiche_fichier_tar()
+				}*/
 				char buffer[BLOCKSIZE];
 				unsigned long taille;
 				sscanf(entete.size,"%lo",&taille);
@@ -467,15 +474,6 @@ int affiche_fichier_tar(char *tar,char*file, int fd_out)
 				}
 				return 1;
 			}
-			//Cas ou l'on a tape un nom de dossier sans le /
-			if((strncmp(file,entete.name,strlen(entete.name)-1)==0) && (entete.typeflag=='5'))
-			{
-				char *error = malloc(strlen(file)+strlen("cat  : est un dossier\n")+2);
-				sprintf(error,"cat %s : est un dossier\n", file);
-				write(STDERR_FILENO,error,strlen(error));
-				free(error);
-				return 0;
-			}
 			unsigned long taille;
 			sscanf(entete.size,"%lo",&taille);
 			long nb_blocs = ceil(taille / 512.0);
@@ -485,9 +483,6 @@ int affiche_fichier_tar(char *tar,char*file, int fd_out)
 		}
 
 	}
-	/*On arrive a la fin du tar sans avoir pu trouver le fichier -> fichier sans entete
-	Par consequent, on sait que le fichier est un repertoire
-	On renvoie donc 0 */
 	return 0;
 }
 /*
@@ -621,7 +616,7 @@ int modification_date_modif(char *tar,char *file,time_t date)
 			//Entete du fichier voulu -> on modifie la date avant de l'ecrire dans la copie
 			if (strcmp(entete.name,file) == 0)
 			{
-				sprintf(entete.mtime,"%011o",date);
+				sprintf(entete.mtime,"%011lo",date);
 				write(fd_copie,&entete,BLOCKSIZE);
 			}
 			//Autre entete -> on l'ecrit tel quel
@@ -676,6 +671,7 @@ int creation_fichier_tar(char*tar,char*src,struct posix_header entete)
 		return 0;
 	}
 	struct posix_header hd2;
+	memset(&hd2,0,BLOCKSIZE);
 	long nb_blocs = 0;
 	int trouve = 0;
 	while ((read(fd,&hd2,512))>0)
@@ -689,7 +685,8 @@ int creation_fichier_tar(char*tar,char*src,struct posix_header entete)
 				int fd_src = open(src,O_RDONLY);
 				if (fd_src == -1)
 				{
-					printf("%s ta merer\n",src);
+					perror("");
+					return 1;
 				}
 				char buffer[BLOCKSIZE];
 				int taille_src = 0;
@@ -702,8 +699,9 @@ int creation_fichier_tar(char*tar,char*src,struct posix_header entete)
 						write(fd_copie, buffer, lus);
 					}
 				}
-				int taille_dest = 0;
-				sscanf(hd2.size,"%o",&taille_dest);
+				long taille_dest = 0;
+				sscanf(hd2.size,"%lo",&taille_dest);
+				printf("%ld %ld\n",taille_dest, ceil((double) taille_dest / (double) 512));
 				lseek(fd,512 * ceil((double) taille_dest / (double) 512),SEEK_CUR);
 				trouve = 1;
 				close(fd_src);
@@ -712,7 +710,7 @@ int creation_fichier_tar(char*tar,char*src,struct posix_header entete)
 			{
 				write(fd_copie,&hd2,BLOCKSIZE);
 				unsigned long taille = 0;
-				sscanf(hd2.size,"%o",&taille);
+				sscanf(hd2.size,"%lo",&taille);
 				long nb_blocs_fich = ceil((double) taille / (double) 512.0);
 				nb_blocs += 1 + nb_blocs_fich;
 				while(nb_blocs_fich != 0)
@@ -731,16 +729,20 @@ int creation_fichier_tar(char*tar,char*src,struct posix_header entete)
 	}
 	close(fd);
 	close(fd_copie);
-	fd = open(tar,O_WRONLY);
-	lseek(fd,0,SEEK_SET);
+	//lseek(fd,0,SEEK_SET);
 	//Ajout du fichier a la fin du tarball s'il n'existe pas
 	if (trouve == 0)
 	{
-		lseek(fd,nb_blocs*512,SEEK_CUR);
+		fd = open(tar,O_WRONLY);
+		lseek(fd,(nb_blocs)*512,SEEK_CUR);
 		write(fd,&entete,512);
 		if(entete.typeflag == '0')
 		{
 			int fd_src = open(src,O_RDONLY);
+			if (fd_src == -1)
+			{
+				perror("tuez moi");
+			}
 			char buffer[BLOCKSIZE];
 			int lus_src = 0;
 			while ((lus_src = read(fd_src,buffer,BLOCKSIZE)) > 0)
@@ -755,6 +757,7 @@ int creation_fichier_tar(char*tar,char*src,struct posix_header entete)
 	//On remplace le fichier de base par sa copie avec le nouveau fichier
 	else
 	{
+		fd = open(tar,O_WRONLY);
 		nb_blocs = 0;
 		char buffer[BLOCKSIZE];
 		int lus = 0;
@@ -766,17 +769,9 @@ int creation_fichier_tar(char*tar,char*src,struct posix_header entete)
 			nb_blocs++;
 		}
 	}
-	//On retablit le fait que le tar est constitue de blocs de 20 blocs de 512 octets
-	while (nb_blocs % 20 != 0)
-	{
-		char buffer[BLOCKSIZE];
-		memset(buffer,0,BLOCKSIZE);
-		write(fd,buffer,BLOCKSIZE);
-		nb_blocs++;
-	}
 	close(fd);
 	//Modification derniere date de modification pour les repertoires "antecedants" du nouveau fichier
-	init_chemin_explorer(entete.name);
+	/*init_chemin_explorer(entete.name);
 	int index_name = 0;
 	time_t date;
 	sscanf(entete.mtime,"%o",&date);
@@ -784,7 +779,7 @@ int creation_fichier_tar(char*tar,char*src,struct posix_header entete)
 	char * name_bis = calloc(strlen(entete.name)+1,sizeof(char));
 	while (index_chemin_a_explorer < chemin_length)
 	{
-		char *file = malloc(strlen(entete.name)+1);
+		char *file = malloc(strlen(entete.name)+3);
 		strncpy(file,&chemin_a_explorer[index_name],index_chemin_a_explorer-index_name);
 		file[index_chemin_a_explorer-index_name] = '\0';
 		strcat(name_bis,file);
@@ -795,7 +790,7 @@ int creation_fichier_tar(char*tar,char*src,struct posix_header entete)
 		free(file);
 	}
 	free_chemin_explorer();
-	free(name_bis);
+	free(name_bis);*/
 	return 0;
 }
 #endif

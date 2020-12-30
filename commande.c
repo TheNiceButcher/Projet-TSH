@@ -591,6 +591,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		destination = malloc(strlen(liste_argument[index_destination])+
 		strlen(tsh->repertoire_courant) + 6);
 		sprintf(destination,"%s%s",tsh->repertoire_courant,liste_argument[index_destination]);
+		sprintf(destination,"%s",simplifie_chemin(destination));
 	}
 	for (int i = 1; i < nb_arg_cmd; i++)
 	{
@@ -790,7 +791,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					}
 					else
 					{
-						cp_tar_to_file(argument_courant,destination,0);
+						cp_tar_to_file(argument_courant,destination,options != NULL);
 					}
 				}
 			}
@@ -806,10 +807,10 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 				sprintf(argument_courant,"%s",simplifie_chemin(argument_courant));
 				if(contexteTarball(argument_courant))
 				{
-					cp_tar_to_tar(argument_courant,destination,0);
+					cp_tar_to_tar(argument_courant,destination,options != NULL);
 				}
 				else
-					cp_file_to_tar(argument_courant,destination,0);
+					cp_file_to_tar(argument_courant,destination,options != NULL,tsh);
 			}
 
 		}

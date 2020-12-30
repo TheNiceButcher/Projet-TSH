@@ -20,6 +20,7 @@
 #include "commande.h"
 #include "tar_c.h"
 #include "tar.h"
+char ** sous_dossiers_directs(char *repr, char *tar);
 int ls(char *file, char **options,shell *tsh);
 int cd(char **liste_argument,int nb_arg_cmd,shell *tsh);
 int pwd(char **liste_argument,int nb_arg_cmd,shell *tsh);
