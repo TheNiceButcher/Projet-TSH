@@ -647,7 +647,7 @@ int modification_date_modif(char *tar,char *file,time_t date)
 	return 0;
 }
 /*
-Crée ou écrase le fichier file dans le tar dont le futur entete est en argument.
+Crée ou écrase le fichier src dans le tar dont le futur entete est en argument.
 */
 int creation_fichier_tar(char*tar,char*src,struct posix_header entete)
 {

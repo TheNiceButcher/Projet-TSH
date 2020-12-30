@@ -602,7 +602,8 @@ struct posix_header entete_dossier(char * name, struct stat st)
 	return hd;
 }
 /*
-
+Fonction auxiliaire de cp_file_to_tar, traitant les fichiers qui ne sont pas
+des repertoires
 */
 int cp_file_to_tar_aux(char *src, char *destination,struct stat st)
 {
@@ -916,11 +917,13 @@ int cp_tar_to_file(char *src, char *destination,int option)
 				free(file_name);
 			}
 		}
+		//Copie vers fichier
 		else
 		{
 
 		}
 	}
+	//Copie tarball en entier
 	else
 	{
 
@@ -929,7 +932,10 @@ int cp_tar_to_file(char *src, char *destination,int option)
 }
 int cp_tar_to_tar(char *src, char *destination,int option)
 {
-	
+	//Utilisation d'un repertoire auxiliaire
+	mkdir(".cp_tar_to_tar",S_IRWXO | S_IRWXG | S_IRWXU);
+	cp_tar_to_tar(src,".cp_tar_to_tar", option);
+	cp_tar_to_tar(".cp_tar_to_tar",destination,option);
 	return 0;
 }
 /*
@@ -1119,65 +1125,6 @@ int mkdir_tar(char *file, char **options,shell *tsh)
 		free(repr_to_create);
 
 	}
-	return 0;
-}
-int mv(char *file,char *destination,char **options,shell *tsh)
-{
-/*
-    if (contexteTarball(file))
-	{
-
-			if(contexteTarball(destination))
-			{
-
-				cp_tar_to_tar(file,destination,options);
-				int index = recherche_fich_tar(file);
-	      	    //Fichier source est un .tar
-	        	if (index == strlen(file))
-		        {
-				  supprimer_fichier(file,RM_DIR,tsh);
-				  return 0;
-	         	}
-	         	else
-	         	{
-	         	    supprimer_fichier(file,RM_DIR,tsh);
-	         	    return 0;
-	         	}
-
-			}
-			else
-			{
-			     cp_tar_to_file(file,RM_DIR,tsh);
-			     return 0;
-			}
-
-
-	}
-	else
-	{
-	    	if(contexteTarball(destination))
-			{
-
-				cp_tar_to_tar(file,destination,options);
-			    if(unlink(file)==-1)
-		      	{
-				char *error = malloc(strlen(file)+strlen("rm  :"));
-				sprintf(error,"rm %s :",file);
-				perror(error);
-				free(error);
-		     	}
-
-			}
-
-	}
-
-
-
-
-    */
-
-
-	printf("mv en construction\n");
 	return 0;
 }
 /*
