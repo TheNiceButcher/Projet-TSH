@@ -385,7 +385,7 @@ Renvoie l'index de la destination si elle est valide ou -1 sinon
 */
 int mv_cp_valide(char **liste_argument,int nb_option,int nb_arg_cmd,shell *tsh)
 {
-	char * destination = NULL;
+	char * destination;
 	int index_destination = -1;
 	char * nom_commande = malloc(strlen(liste_argument[0]) + 2);
 	sprintf(nom_commande,"%s",liste_argument[0]);
@@ -394,8 +394,8 @@ int mv_cp_valide(char **liste_argument,int nb_option,int nb_arg_cmd,shell *tsh)
 	{
 		if(liste_argument[i][0] != '-')
 		{
-			destination = malloc(strlen(liste_argument[i])+
-			strlen(tsh->repertoire_courant)+3);
+			destination = calloc(strlen(liste_argument[i])+
+			strlen(tsh->repertoire_courant)+3,sizeof(char));
 			index_destination = i;
 			sprintf(destination,"%s%s",tsh->repertoire_courant,liste_argument[i]);
 			break;
@@ -755,7 +755,13 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 							perror("fork traitement_commande");
 							break;
 						case 0:
-							execlp(nom_commande,nom_commande,liste_argument[i],destination,options,NULL);
+
+							if (options != NULL)
+							{
+								execlp(nom_commande,nom_commande,liste_argument[i],destination,"-r",NULL);
+							}
+							else
+								execlp(nom_commande,nom_commande,liste_argument[i],destination,NULL);
 							exit(0);
 							break;
 						default :
@@ -780,9 +786,13 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 								perror("fork traitement_commande");
 								break;
 							case 0:
-								execlp(nom_commande,nom_commande,argument_courant,destination,options,NULL);
+								if (options != NULL)
+								{
+									execlp(nom_commande,nom_commande,liste_argument[i],destination,"-r",NULL);
+								}
+								else
+									execlp(nom_commande,nom_commande,liste_argument[i],destination,NULL);
 								exit(0);
-								break;
 							default :
 								wait(NULL);
 								free(argument_courant);
@@ -791,7 +801,17 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					}
 					else
 					{
-						cp_tar_to_file(argument_courant,destination,options != NULL);
+						int option = options != NULL || strcmp(nom_commande,"mv") == 0;
+						cp_tar_to_file(argument_courant,destination,option);
+						if (strcmp(nom_commande,"mv")==0)
+						{
+							int fils = fork();
+							if (fils == 0)
+							{
+								execlp("rm","rm",argument_courant, "-rf", NULL);
+								exit(0);
+							}
+						}
 					}
 				}
 			}
@@ -805,12 +825,17 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 					continue;
 				}
 				sprintf(argument_courant,"%s",simplifie_chemin(argument_courant));
+				int option = options != NULL || strcmp(nom_commande,"mv") == 0;
 				if(contexteTarball(argument_courant))
 				{
-					cp_tar_to_tar(argument_courant,destination,options != NULL);
+					cp_tar_to_tar(argument_courant,destination,option);
 				}
 				else
-					cp_file_to_tar(argument_courant,destination,options != NULL,tsh);
+					cp_file_to_tar(argument_courant,destination,option);
+				if (strcmp(nom_commande,"mv") == 0)
+				{
+					supprimer_fichier(argument_courant,RM_R,tsh);
+				}
 			}
 
 		}
