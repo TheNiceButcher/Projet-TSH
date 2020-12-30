@@ -964,7 +964,7 @@ int redirection_input(char **liste_argument, int nb_arg_cmd, shell *tsh)
 int redirection_error(char **liste_argument, int nb_arg_cmd, shell *tsh)
 {
 	int in, out;
-
+	char **options = recherche_option(liste_argument,nb_arg_cmd-2);
 	in = open(liste_argument[1], O_RDONLY);
 
 	if (in == -1){
@@ -992,7 +992,17 @@ int redirection_error(char **liste_argument, int nb_arg_cmd, shell *tsh)
 		}if (fils == 0)
 		{
 			close(in);
-			execlp(liste_argument[0], liste_argument[0], liste_argument[1], NULL);
+			if(contexteTarball(liste_argument[1])){
+				if(strcmp(liste_argument[0], "ls")){
+					ls(liste_argument[1], options, tsh);
+				}else if(strcmp(liste_argument[0], "cat")){
+					cat(liste_argument[1], options, tsh);
+				}else if(strcmp(liste_argument[0], "mv") || strcmp(liste_argument[0], "cp")){
+					traitement_commandeTar(liste_argument, nb_arg_cmd-2, tsh);
+				}
+			}else{
+				execlp(liste_argument[0], liste_argument[0], liste_argument[1], NULL);
+			}
 			exit(0);
 		}
 		wait(NULL);
