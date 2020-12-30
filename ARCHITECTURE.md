@@ -8,12 +8,12 @@ Projet TSH 2020-2021
 
 * Création d'un shell
 
-Pour recevoir les commandes de l'utilisateur, il faut être prêt à récupérer les informations qu'il nous donne. Pour ce faire, nous avons créer une boucle qui ne se finit qu'une fois que l'utilisateur le veuille. On a alors défini la variable `quit` dans la structure `shell` qui contient d'autres informations comme le répertoire courant(`repertoire_courant`) ou le fait qu'on soit dans un tarball(`tarball`), qui vérifie cela. La boucle et le programme s'arrêtera une fois cet variable mise à 1. Maintenant que nous avons une boucle pour recevoir les commandes, il faut les récupérer.
+Pour recevoir les commandes de l'utilisateur, il faut être prêt à récupérer les informations qu'il nous donne. Pour ce faire, nous avons créer une boucle qui ne se finit qu'une fois que l'utilisateur le veuille. On a alors défini la variable `quit` dans la structure `shell` qui contient d'autres informations comme le répertoire courant(`repertoire_courant`), le fait qu'on soit dans un tarball(`tarball`), qui vérifie cela ou encore les différentes commandes effectives sur les tarballs (`cmd_tarballs`) et leurs options supportées (`options`). La boucle et le programme s'arrêtera une fois cet variable mise à 1. Maintenant que nous avons une boucle pour recevoir les commandes, il faut les récupérer.
 
 
 * Récupération d'une commande
 
-Pour récupérer la commande tapée par l'utilisateur, on utilise la fonction `recuperer_commande`, qui va via la fonction readline de la bibliothèque readline,va avoir la liste de caractères qui correspond à la commande de l'utilisateur. Elle fait alors appel à `decoup_mot` sur cette liste de caractères, qui parcourt la liste à un index donné et renvoie un mot contenu entre deux espaces, qui correspond à un des arguments de la commande de l'utilisateur. On l'appelle jusqu'à la fin de la commande et on stocke à chaque fois le résultat dans une liste. On renvoie alors cette liste d'arguments qui va servir à l'analyser.
+Pour récupérer la commande tapée par l'utilisateur, on utilise la fonction `recuperer_commande`, qui va via la fonction readline de la bibliothèque readline,va avoir la liste de caractères qui correspond à la commande de l'utilisateur. Elle fait alors appel à `decoup_mot` sur cette liste de caractères, qui parcourt la commande, en la copiant dans la variable globale `commande_a_explorer` à un index donné et renvoie l'index correspondant à la fin du mot débuté à l'index en argument.
 
 
 * Analyse de la commande
@@ -31,13 +31,16 @@ S'il y en a, on parcourt alors la liste d'arguments, en s'arrêtant à chaque sy
 	* On a une commande ne gérant pas les tarballs, on appelle alors `execlp`(bibliothèque standard) qui effectue la commande comme dans le bash,
 	* Sinon, on appelle la fonction `traitement_commandeTar` avec la liste d'arguments, sa taille et un pointeur sur la structure `shell` définie avant la boucle du programme.
 
-Dans le second cas, `traitement_commandeTar` vérifie tout d'abord si la commande peut gérer plusieurs arguments ou non. Si elle ne peut gérer qu'au plus un argument (comme `pwd` et `cd`), on appelle leur fonction homonyme. Sinon, on parcourt les différents arguments de la commande pour vérifier si la commande est applicable et le cas échéant, la traiter. Pour ce faire, on applique à chaque argument les fonctions `cheminValide`, attestant l'existence d'un fichier, et de `contexteTarball`, indiquant si l'argument est dans un tarball ou non,
-afin de traiter au mieux la demande de l'utilisateur. Selon les résultats de ces dernières, on fait les actions suivantes:
+Dans le second cas, `traitement_commandeTar` vérifie tout d'abord si la commande peut gérer plusieurs arguments ou non. Si elle ne peut gérer qu'au plus un argument (comme `pwd` et `cd`), on appelle leur fonction homonyme. Sinon, on regarde si le nombre d'arguments permet l'exécution de la commande. Dans le cas contraire, on lève une erreur.
 
+Si nous avons le bon nombre d'arguments, on parcourt les différents arguments de la commande pour vérifier si la commande est applicable et le cas échéant, la traiter. Pour ce faire, on applique à chaque argument les fonctions `cheminValide`, attestant l'existence d'un fichier, et de `contexteTarball`, indiquant si l'argument est dans un tarball ou non,
+afin de traiter au mieux la demande de l'utilisateur, et on récupère les options de la commande grâce à `recherche_option` et on les compare avec `tsh->options`. Selon les résultats de ces dernières, on fait les actions suivantes:
 	* Si l'existence ou la non-existence de l'argument pose problème à la commande, on renvoie une erreur et on passe à l'argument suivant,
 	* Si l'argument est valide, et dans un contexte non Tarball, on appelle exec avec le nom de la commande, l'argument et les options s'il y en a,
-	* Enfin, si l'argument est valide, et dans un contexte Tarball, on appelle la fonction présente dans `tar_cmd` correspondant à l'action voulue, si les options le permettent, et on passe à l'argument suivant.  
+	* Si l'argument est valide, dans un tarball mais qu'il y a au moins une option non supportée, on renvoie une message d'erreur et on passe à la suite,
+	* Enfin, si l'argument est valide, et dans un contexte Tarball, et qu'il y a les bonnes options, on appelle la fonction présente dans `tar_cmd` correspondant à l'action voulue, si les options le permettent, et on passe à l'argument suivant.  
 
+De plus de ces conditions, `mv` et `cp` subissent une vérification supplémentaire, avant le parcours des arguments, sur leur dernier argument différent d'une option, afin de savoir si leur cible est valide ou non. En cas de non validité, on ne rentre même pas dans la boucle et part sur une erreur.
 
 L'action voulue est donc effectuée. On repart alors pour un autre tour du boucle et ainsi de suite, jusqu'à la commande `exit` faisant quitter le shell.
 
