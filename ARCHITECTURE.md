@@ -33,8 +33,8 @@ S'il y en a, on parcourt alors la liste d'arguments, en s'arrêtant à chaque sy
 
 Dans le second cas, `traitement_commandeTar` vérifie tout d'abord si la commande peut gérer plusieurs arguments ou non. Si elle ne peut gérer qu'au plus un argument (comme `pwd` et `cd`), on appelle leur fonction homonyme. Sinon, on regarde si le nombre d'arguments permet l'exécution de la commande. Dans le cas contraire, on lève une erreur.
 
-Si nous avons le bon nombre d'arguments, on parcourt les différents arguments de la commande pour vérifier si la commande est applicable et le cas échéant, la traiter. Pour ce faire, on applique à chaque argument les fonctions `cheminValide`, attestant l'existence d'un fichier, et de `contexteTarball`, indiquant si l'argument est dans un tarball ou non,
-afin de traiter au mieux la demande de l'utilisateur, et on récupère les options de la commande grâce à `recherche_option` et on les compare avec `tsh->options`. Selon les résultats de ces dernières, on fait les actions suivantes:
+Si nous avons le bon nombre d'arguments, on parcourt les différents arguments de la commande pour vérifier si la commande est applicable et le cas échéant, la traiter. Pour ce faire, on applique à chaque argument les fonctions `cheminValide`, attestant l'existence d'un fichier, et de `contexteTarball`, indiquant si l'argument est dans un tarball ou non, afin de traiter au mieux la demande de l'utilisateur, et on récupère les options de la commande grâce à `recherche_option` et on les compare avec `tsh->options`.
+* Selon les résultats de ces dernières. on fait les actions suivantes:
 	* Si l'existence ou la non-existence de l'argument pose problème à la commande, on renvoie une erreur et on passe à l'argument suivant,
 	* Si l'argument est valide, et dans un contexte non Tarball, on appelle exec avec le nom de la commande, l'argument et les options s'il y en a,
 	* Si l'argument est valide, dans un tarball mais qu'il y a au moins une option non supportée, on renvoie une message d'erreur et on passe à la suite,
