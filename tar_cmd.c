@@ -663,7 +663,7 @@ int cp_file_to_tar_aux(char *src, char *destination,struct stat st)
 Copie le fichier src, qui est en dehors d'un tarball, vers destination qui est
 dans un tarball
 */
-int cp_file_to_tar(char *src, char *destination,int option,shell *tsh)
+int cp_file_to_tar(char *src, char *destination,int option)
 {
 	struct stat st_src;
 	if (stat(src,&st_src)==-1)
@@ -728,7 +728,6 @@ int cp_file_to_tar(char *src, char *destination,int option,shell *tsh)
 					sprintf(absolute_name,"%s%s",src,sleep->d_name);
 				else
 					sprintf(absolute_name,"%s/%s",src,sleep->d_name);
-				printf("absolute name %s\n",absolute_name);
 		      	if(stat(absolute_name,&st)==-1)
 	      		{
 					char * error = malloc(strlen(absolute_name)+50);
@@ -740,7 +739,7 @@ int cp_file_to_tar(char *src, char *destination,int option,shell *tsh)
 				//Si c'est un dossier, on rappelle cp_file_to_tar sur le dossier
 		      	if (S_ISDIR(st.st_mode))
 		      	{
-					cp_file_to_tar(absolute_name, new_destination, option, tsh);
+					cp_file_to_tar(absolute_name, new_destination, option);
 		      	}
 				//Sinon on appelle la fonction auxiliaire
 		      	else
@@ -926,16 +925,48 @@ int cp_tar_to_file(char *src, char *destination,int option)
 	//Copie tarball en entier
 	else
 	{
-
+		char **list = list_fich(src);
+		int i = 0;
+		while (list[i] != NULL)
+		{
+			char * new_src = malloc(strlen(list[i])+strlen(src) + 6);
+			if (src[strlen(src) -1] == '/')
+				sprintf(new_src,"%s%s",src, list[i]);
+			else
+				sprintf(new_src,"%s/%s",src, list[i]);
+			printf("%s\n",new_src);
+			cp_tar_to_file(new_src,destination,option);
+			i++;
+		}
+		for (int j = 0; j < i; j++)
+		{
+			free(list[j]);
+		}
+		free(list);
 	}
 	return 0;
 }
+/*
+Copie des fichiers d'un contexte tar vers un autre contexte tar
+*/
 int cp_tar_to_tar(char *src, char *destination,int option)
 {
 	//Utilisation d'un repertoire auxiliaire
-	mkdir(".cp_tar_to_tar",S_IRWXO | S_IRWXG | S_IRWXU);
-	cp_tar_to_tar(src,".cp_tar_to_tar", option);
-	cp_tar_to_tar(".cp_tar_to_tar",destination,option);
+	if (mkdir(".cp_tar_to_tar",S_IRWXO | S_IRWXG | S_IRWXU) == -1)
+	{
+		perror("cp_tar_to_tar mkdir");
+		return 1;
+	}
+	cp_tar_to_file(src,".cp_tar_to_tar", option);
+
+	cp_file_to_tar(".cp_tar_to_tar",destination,1);
+	int fils = fork();
+	if (fils == 0)
+	{
+		execlp("rm","rm",".cp_tar_to_tar", "-rf", NULL);
+		exit(0);
+	}
+	wait(NULL);
 	return 0;
 }
 /*
@@ -1153,22 +1184,13 @@ int cat(char *file, char **options,shell *tsh)
 		int index = recherche_fich_tar(fich);
 		strncpy(tar,fich,index);
 		tar[strlen(tar)-1] = '\0';
-		char *file_to_find = malloc(1024);
+		char *file_to_find = malloc(strlen(fich) + 2);
 		strcpy(file_to_find,&fich[index]);
 		if (file[strlen(file)-1]=='/')
 			file_to_find[strlen(file_to_find)-1] = '\0';
 		else
 			file_to_find[strlen(file_to_find)] = '\0';
 		affiche_fichier_tar(tar,file_to_find, STDOUT_FILENO);
-		/*{
-			char *error = malloc(strlen(file)+strlen("cat \n"));
-			sprintf(error,"cat %s : est un dossier\n",file);
-			write(STDERR_FILENO,error,strlen(error));
-			free(error);
-			free(tar);
-			free(file_to_find);
-			return 1;
-		}*/
 		free(tar);
 		free(file_to_find);
 	}

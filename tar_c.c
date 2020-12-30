@@ -84,7 +84,7 @@ struct posix_header recuperer_entete(char *tar,char *file)
 	if (fd == -1)
 	{
 		char *erreur = malloc(strlen(tar) + strlen(file) + 50);
-		sprintf(erreur,"recuperer_entete %s %s erreur :\n",tar,file);
+		sprintf(erreur,"recuperer_entete %s %s erreur :",tar,file);
 		perror(erreur);
 		free(erreur);
 		return entete;
@@ -701,7 +701,6 @@ int creation_fichier_tar(char*tar,char*src,struct posix_header entete)
 				}
 				long taille_dest = 0;
 				sscanf(hd2.size,"%lo",&taille_dest);
-				printf("%ld %ld\n",taille_dest, ceil((double) taille_dest / (double) 512));
 				lseek(fd,512 * ceil((double) taille_dest / (double) 512),SEEK_CUR);
 				trouve = 1;
 				close(fd_src);
