@@ -714,7 +714,6 @@ int creation_fichier_tar(char*tar,char*src,struct posix_header entete)
 				unsigned long taille = 0;
 				sscanf(hd2.size,"%o",&taille);
 				long nb_blocs_fich = ceil((double) taille / (double) 512.0);
-				printf("%ld %s\n",taille,hd2.name);
 				nb_blocs += 1 + nb_blocs_fich;
 				while(nb_blocs_fich != 0)
 				{

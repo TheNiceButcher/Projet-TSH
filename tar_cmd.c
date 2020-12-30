@@ -402,6 +402,9 @@ char * perm_str(mode_t mode)
 	}
 	return perm;
 }
+/*
+Renvoie le mode en mode_t correspondant a la representation octal en argument
+*/
 mode_t perm_mode(char mode[8])
 {
 	mode_t m = 0;
@@ -461,17 +464,130 @@ mode_t perm_mode(char mode[8])
 	}
 	return m;
 }
-int cp_file_to_tar(char *src, char *destination,int option)
+/*
+Renvoie le typeflag de posix_header correspondant au mode indique
+*/
+char type_fich(mode_t mode)
+{
+	switch(S_IFMT & mode)
+	{
+		case S_IFREG:
+			return '0';
+		case S_IFLNK:
+			return '2';
+		case S_IFCHR:
+			return '3';
+		case S_IFBLK:
+			return '4';
+		case S_IFDIR:
+			return '5';
+		case S_IFIFO:
+			return '6';
+		default :
+			return '\0';
+
+	}
+}
+/*
+Renvoie l'entete correspondant a un dossier avec son nom et sa struct st
+*/
+struct posix_header entete_dossier(char * name, struct stat st)
+{
+	struct posix_header hd;
+	memset(&hd,0,BLOCKSIZE);
+	if (name[strlen(name)-1] == '/')
+		sprintf(hd.name,"%s",name);
+	else
+		printf(hd.name,"%s/",name);
+	sprintf(hd.mode,"0000%s",perm_str(st.st_mode));
+	hd.typeflag = '5';
+	time_t date = time(NULL);
+	sprintf(hd.mtime,"%011lo",date);
+	sprintf(hd.uid,"%d",st.st_uid);
+	sprintf(hd.gid,"%d",st.st_gid);
+	sprintf(hd.uname,"%s",getpwuid(st.st_uid)->pw_name);
+	sprintf(hd.gname,"%s",getgrgid(st.st_gid)->gr_name);
+	sprintf(hd.size,"%011o",0);
+	strcpy(hd.magic,"ustar");
+	set_checksum(&hd);
+	if (!check_checksum(&hd))
+	{
+		perror("Checksum impossible");
+		memset(&hd,0,BLOCKSIZE);
+		return hd;
+	}
+	return hd;
+}
+/*
+
+*/
+int cp_file_to_tar_aux(char *src, char *destination,struct stat st)
+{
+	int index_tar = recherche_fich_tar(destination);
+	char *tar = malloc(index_tar + 2);
+	strncpy(tar,destination,index_tar);
+	tar[index_tar] = '\0';
+	if (tar[index_tar -1] == '/')
+		tar[index_tar - 1] = '\0';
+	int index_src = strlen(src) - 1;
+	while (index_src != 0 && src[index_src] != '/')
+	{
+		index_src--;
+	}
+	if (index_src != 0)
+		index_src++;
+	struct posix_header entete;
+	memset(&entete, 0, BLOCKSIZE);
+	if (strlen(destination)==index_tar)
+		sprintf(entete.name,"%s",&src[index_src]);
+	else
+	{
+		if (destination[strlen(destination) - 1] != '/')
+			sprintf(entete.name,"%s/%s",&destination[index_tar],&src[index_src]);
+		else
+			sprintf(entete.name,"%s%s",&destination[index_tar],&src[index_src]);
+	}
+	time_t date = time(NULL);
+	sprintf(entete.mtime,"%011o",date);
+	sprintf(entete.uid,"%d",st.st_uid);
+	sprintf(entete.gid,"%d",st.st_gid);
+	sprintf(entete.uname,"%s",getpwuid(st.st_uid)->pw_name);
+	sprintf(entete.gname,"%s",getgrgid(st.st_gid)->gr_name);
+	sprintf(entete.size,"%011lo",st.st_size);
+  	strcpy(entete.magic,"ustar");
+	sprintf(entete.mode,"0000%s",perm_str(st.st_mode));
+	entete.typeflag = type_fich(st.st_mode);
+	if (entete.typeflag != '0')
+	{
+		sprintf(entete.size,"%011lo",0);
+	}
+	else
+	{
+		sprintf(entete.size,"%011lo",st.st_size);
+	}
+	set_checksum(&entete);
+	if (!check_checksum(&entete))
+		perror("Checksum impossible");
+	creation_fichier_tar(tar,src,entete);
+	free(tar);
+	return 0;
+
+}
+/*
+Copie le fichier src, qui est en dehors d'un tarball, vers destination qui est
+dans un tarball
+*/
+int cp_file_to_tar(char *src, char *destination,int option,shell *tsh)
 {
 	printf("cp file -> tar\n");
-	struct stat st;
-	if (stat(src,&st)==-1)
+	struct stat st_src;
+	if (stat(src,&st_src)==-1)
 	{
 		perror("src cp_file_to_tar");
 		return 1;
 	}
 	//On verifie si la commande est mv ou cp avec -r si on a un dossier
-	if (S_ISDIR(st.st_mode) && option == 0)
+	if (S_ISDIR(st_src.st_mode) && option == 0)
 	{
 		char * error = malloc(strlen(src) + 50);
 		sprintf(error,"cp : -r non specifie : omission du repertoire %s\n", src);
@@ -484,40 +600,87 @@ int cp_file_to_tar(char *src, char *destination,int option)
 	strncpy(tar,destination,index_tar);
 	tar[index_tar] = '\0';
 	if (tar[index_tar -1] == '/')
+	{
 		tar[index_tar - 1] = '\0';
-	int index_src = strlen(src) - 1;
-	while (index_src != 0 && src[index_src] != '/')
-	{
-		index_src--;
 	}
-	index_src++;
-	struct posix_header entete;
-	memset(&entete, 0, BLOCKSIZE);
-	if (strlen(destination)==index_tar)
+	//Le fichier a copier est un dossier -> on le parcourt en creant son entete au prealable
+	if (S_ISDIR(st_src.st_mode))
 	{
-		sprintf(entete.name,"%s",&src[index_src]);
+		DIR * repr = opendir(src);
+		if (repr == NULL)
+		{
+			perror("");
+			return 0;
+		}
+		int index_re = strlen(src) - 1;
+		if (src[index_re]=='/')
+			index_re--;
+		while (index_re > 0 && src[index_re] != '/')
+		{
+			index_re--;
+		}
+		index_re++;
+		char * new_repr = malloc(strlen(src) + strlen(destination) + 4);
+		if (index_tar != strlen(destination))
+			sprintf(new_repr, "%s/%s",&destination[index_tar],&src[index_re]);
+		else
+			sprintf(new_repr, "%s",&src[index_re]);
+		creation_fichier_tar(tar,new_repr,entete_dossier(new_repr,st_src));
+		free(new_repr);
+		char * new_destination = malloc(strlen(destination) + strlen(src)+6);
+		if (destination[strlen(destination)-1]!= '/')
+			sprintf(new_destination,"%s/%s/", destination, &src[index_re]);
+		else
+			sprintf(new_destination,"%s%s/", destination, &src[index_re]);
+		struct dirent * sleep = readdir(repr);
+	  	while (sleep)
+	  	{
+	    	if (strcmp(sleep->d_name,".") && strcmp(sleep->d_name,".."))
+	    	{
+		      	struct stat st;
+		      	char * absolute_name = malloc(strlen(src)+strlen(sleep->d_name)+4);
+				if (src[strlen(src)-1] == '/')
+					sprintf(absolute_name,"%s%s",src,sleep->d_name);
+				else
+					sprintf(absolute_name,"%s/%s",src,sleep->d_name);
+				printf("absolute name %s\n",absolute_name);
+		      	if(stat(absolute_name,&st)==-1)
+	      		{
+					char * error = malloc(strlen(absolute_name)+50);
+					sprintf(error,"stat cp_file_to_tar %s",absolute_name);
+		        	perror("stat cp_file_to_tar");
+		        	free(absolute_name);
+		        	return -1;
+	      		}
+				//Si c'est un dossier, on rappelle cp_file_to_tar sur le dossier
+		      	if (S_ISDIR(st.st_mode))
+		      	{
+					cp_file_to_tar(absolute_name, new_destination, option, tsh);
+		      	}
+				//Sinon on appelle la fonction auxiliaire
+		      	else
+		      	{
+					cp_file_to_tar_aux(absolute_name,new_destination,st);
+		      	}
+	      		free(absolute_name);
+	    	}
+	    	sleep = readdir(repr);
+	  	}
+	  	closedir(repr);
+	  	free(sleep);
+	  	return 0;
 	}
+	//Src != dossier => appel a cp_file_to_tar_aux
 	else
-		sprintf(entete.name,"%s/%s",&destination[index_tar],&src[index_src]);
-	time_t date = time(NULL);
-	sprintf(entete.mtime,"%011o",date);
-	sprintf(entete.uid,"%d",st.st_uid);
-	sprintf(entete.gid,"%d",st.st_gid);
-	sprintf(entete.uname,"%s",getpwuid(st.st_uid)->pw_name);
-	sprintf(entete.gname,"%s",getgrgid(st.st_gid)->gr_name);
-	sprintf(entete.size,"%011lo",st.st_size);
-  	strcpy(entete.magic,"ustar");
-	sprintf(entete.mode,"0000%s",perm_str(st.st_mode));
-
-	entete.typeflag = '0';
-	set_checksum(&entete);
-	if (!check_checksum(&entete))
-		perror("Checksum impossible");
-	printf("%s %s\n",entete.name, tar);
-	creation_fichier_tar(tar,src,entete);
-	free(tar);
-	return 0;
+	{
+		cp_file_to_tar_aux(src,destination,st_src);
+		return 0;
+	}
 }
+/*
+Copie le fichier src, present dans un tarball, vers destination, qui est en dehors
+d'un tarball
+*/
 int cp_tar_to_file(char *src, char *destination,int option)
 {
 	printf("cp tar -> file\n");
@@ -574,12 +737,15 @@ int cp_tar_to_file(char *src, char *destination,int option)
 			free(tar);
 			free(file_name);
 		}
+		else
+		{
+
+		}
 	}
 	return 0;
 }
 int cp_tar_to_tar(char *src, char *destination,int option)
 {
-	printf("cp tar -> tar\n");
 	return 0;
 }
 int cp(char *file,char * destination,char ** options,shell *tsh)
@@ -1261,6 +1427,9 @@ int cp(char *file,char * destination,char ** options,shell *tsh)
 			printf("cp en construction\n");
 			return 0;
 }
+/*
+Supprime le fichier file contenu dans un tarball si l'option le permet
+*/
 int supprimer_fichier(char *file, int option, shell *tsh)
 {
 
@@ -1391,7 +1560,6 @@ int mkdir_tar(char *file, char **options,shell *tsh)
 	//Creation d'un tarball
 	if (index == strlen(fichier))
 	{
-		printf("Création de .tar %s\n",fichier);
 		fichier[index-1] = '\0';
 		int fd = creat(fichier, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
 		if (fd == -1)
@@ -1453,38 +1621,38 @@ int mv(char *file,char *destination,char **options,shell *tsh)
 /*
     if (contexteTarball(file))
 	{
-		
+
 			if(contexteTarball(destination))
 			{
-				
+
 				cp_tar_to_tar(file,destination,options);
 				int index = recherche_fich_tar(file);
 	      	    //Fichier source est un .tar
 	        	if (index == strlen(file))
 		        {
-				  supprimer_fichier(file,RM_DIR,tsh);  
+				  supprimer_fichier(file,RM_DIR,tsh);
 				  return 0;
 	         	}
 	         	else
 	         	{
-	         	    supprimer_fichier(file,RM_DIR,tsh);  
+	         	    supprimer_fichier(file,RM_DIR,tsh);
 	         	    return 0;
 	         	}
-				
+
 			}
 			else
 			{
 			     cp_tar_to_file(file,RM_DIR,tsh);
 			     return 0;
 			}
-			
-		
+
+
 	}
 	else
 	{
 	    	if(contexteTarball(destination))
 			{
-				
+
 				cp_tar_to_tar(file,destination,options);
 			    if(unlink(file)==-1)
 		      	{
@@ -1493,17 +1661,17 @@ int mv(char *file,char *destination,char **options,shell *tsh)
 				perror(error);
 				free(error);
 		     	}
-				
+
 			}
-	    
+
 	}
-    
-    
-    
-    
+
+
+
+
     */
-    
-    
+
+
 	   /* struct stat stat_src;
 	     char *src_final, *dest_final;
 	    if (contexteTarball(simple_src)){

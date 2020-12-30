@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <pwd.h>
+#include <dirent.h>
 #include <grp.h>
 #include <time.h>
 #include "shell.h"
@@ -22,7 +23,7 @@
 int ls(char *file, char **options,shell *tsh);
 int cd(char **liste_argument,int nb_arg_cmd,shell *tsh);
 int pwd(char **liste_argument,int nb_arg_cmd,shell *tsh);
-int cp_file_to_tar(char *src, char *destination,int option);
+int cp_file_to_tar(char *src, char *destination,int option,shell *tsh);
 int cp_tar_to_file(char *src, char *destination,int option);
 int cp_tar_to_tar(char *src, char *destination,int option);
 int cp(char *file,char *destination,char ** options,shell *tsh);
