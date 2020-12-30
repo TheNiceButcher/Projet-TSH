@@ -82,7 +82,7 @@ Parcourt la commande present dans la variable globale commande_a_explorer a part
 de l'index en argument et renvoie l'index correspondant a la fin du mot debute
 en l'argument index. On definit un mot comme un suite de caractère sans espace.
 */
-int decoup_mot_aux(int index)
+int decoup_mot(int index)
 {
 	//On est a la fin de commande_a_explorer, on renvoie directement index
 	if (commande_a_explorer[index] == '\n' || commande_a_explorer[index] == '\0')
@@ -200,7 +200,7 @@ char **recuperer_commande(int * taille_commande)
 	int j = 1;
 	commande_a_explorer = malloc(strlen(commande) +3);
 	sprintf(commande_a_explorer,"%s",commande);
-	int index = decoup_mot_aux(0);
+	int index = decoup_mot(0);
 	char * nom_commande = malloc(index +3);
 	strncpy(nom_commande,&commande_a_explorer[0],index);
 	nom_commande[index] = '\0';
@@ -222,7 +222,7 @@ char **recuperer_commande(int * taille_commande)
 		//Arivee a la fin de la commande
 		if (commande_a_explorer[index_prec] == '\0')
 			break;
-		index = decoup_mot_aux(index_prec);
+		index = decoup_mot(index_prec);
 		char * mot = malloc(index - index_prec + 1);
 		strncpy(mot,&commande_a_explorer[index_prec],index - index_prec);
 		mot[index - index_prec] = '\0';

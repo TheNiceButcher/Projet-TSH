@@ -557,6 +557,31 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		free(options);
 		return 0;
 	}
+	/*Si la commande est ls sans argument, on traite directement ls sur le
+	repertoire courant*/
+	if ((nb_arg_cmd - nb_options == 1) && strcmp(nom_commande,"cat")==0)
+	{
+		int fils = fork();
+		switch (fils) {
+			case -1:
+				perror("fork traitement_commandeTar");
+				break;
+			case 0:
+				execlp("cat","cat",NULL);
+				exit(0);
+				break;
+			default :
+				wait(NULL);
+		}
+
+		free(nom_commande);
+		for (int j = 0; j < nb_options; j++)
+		{
+			free(options[j]);
+		}
+		free(options);
+		return 0;
+	}
 	//Sinon, si la commande n'a pas d'argument, on renvoie une erreur
 	if(nb_arg_cmd==1)
 	{
