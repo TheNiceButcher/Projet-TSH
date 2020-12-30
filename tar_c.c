@@ -76,6 +76,9 @@ char **list_fich(char *tar)
 	return liste_fichier;
 
 }
+/*
+Renvoie l'entete du fichier file present dans tar
+*/
 struct posix_header recuperer_entete(char *tar,char *file)
 {
 	struct posix_header entete;
@@ -453,11 +456,6 @@ int affiche_fichier_tar(char *tar,char*file, int fd_out)
 			//On affiche le fichier
 			if(strcmp(file,entete.name)==0)
 			{
-				/*if (entete.typeflag == '2')
-				{
-					if (estPresent())
-					affiche_fichier_tar()
-				}*/
 				char buffer[BLOCKSIZE];
 				unsigned long taille;
 				sscanf(entete.size,"%lo",&taille);

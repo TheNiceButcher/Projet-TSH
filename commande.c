@@ -40,6 +40,7 @@ int contexteTarball(char*chemin)
 		return 0;
 	else
 	{
+		//On parcourt le chemin a la recherche d'un fichier en .tar
 		int index_prec = 0;
 		init_chemin_explorer(chemin);
 		decoup_fich();
@@ -557,8 +558,7 @@ int traitement_commandeTar(char **liste_argument,int nb_arg_cmd,shell *tsh)
 		free(options);
 		return 0;
 	}
-	/*Si la commande est ls sans argument, on traite directement ls sur le
-	repertoire courant*/
+	/*Si la commande est cat sans argument, on lance exec */
 	if ((nb_arg_cmd - nb_options == 1) && strcmp(nom_commande,"cat")==0)
 	{
 		int fils = fork();

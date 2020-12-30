@@ -439,6 +439,9 @@ int pwd(char **liste_argument,int nb_arg_cmd,shell *tsh)
 	free(repr);
 	return 0;
 }
+/*
+Convertit un mode_t mode sous forme octale
+*/
 char * perm_str(mode_t mode)
 {
 	char * perm = malloc(4);
@@ -548,7 +551,7 @@ mode_t perm_mode(char mode[8])
 	return m;
 }
 /*
-Renvoie le typeflag de posix_header correspondant au mode indique
+Renvoie le typeflag de posix_header correspondant au mode en mode_t indique
 */
 char type_fich(mode_t mode)
 {
